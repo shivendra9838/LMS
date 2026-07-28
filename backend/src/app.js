@@ -24,10 +24,12 @@ app.use(cookieParser()); // Parse cookies
 const healthRoutes = require('./routes/health.routes');
 const authRoutes = require('./routes/auth.routes');
 const adminRoutes = require('./routes/admin.routes');
+const employeeRoutes = require('./routes/employee.routes');
 
 app.use('/api/health', healthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/employees', employeeRoutes);
 // Future module routes will be mounted here (e.g., app.use('/api/auth', authRoutes))
 
 const notFound = require('./middlewares/notFound.middleware');
