@@ -21,4 +21,32 @@ const login = async (req, res, next) => {
   }
 };
 
-module.exports = { login };
+const Admin = require('../models/Admin');
+const Employee = require('../models/Employee');
+
+const getMe = async (req, res, next) => {
+  try {
+    let user;
+    if (req.user.role === 'ADMIN') {
+      user = await Admin.findById(req.user.id).select('-password');
+    } else {
+      user = await Employee.findById(req.user.id).select('-password');
+    }
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    res.status(200).json({
+      success: true,
+      user: {
+        name: user.name,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { login, getMe };
