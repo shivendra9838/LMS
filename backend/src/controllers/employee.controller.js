@@ -94,4 +94,18 @@ const updateEmployeeStatusController = async (req, res, next) => {
   }
 };
 
-module.exports = { createEmployee, getEmployeeList, getEmployee, updateEmployeeController, updateEmployeeStatusController };
+const getEmployeeProfile = async (req, res, next) => {
+  try {
+    const employee = await getEmployeeByIdService(req.user.id);
+    res.status(200).json({
+      employeeCode: employee.employeeCode,
+      name: employee.name,
+      city: employee.city,
+      area: employee.area
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { createEmployee, getEmployeeList, getEmployee, updateEmployeeController, updateEmployeeStatusController, getEmployeeProfile };

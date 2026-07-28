@@ -1,5 +1,8 @@
-const { findByEmailOrPhone, createEmployee, getEmployees, getEmployeeById, updateEmployeeById, updateEmployeeStatusById } = require('../repositories/employee.repository');
+const { findByEmailOrPhone, createEmployee, getEmployees, getEmployeeById, updateEmployeeById, updateEmployeeStatusById, getEmployeeStats } = require('../repositories/employee.repository');
 const { generateEmployeeCode } = require('../utils/generateCode');
+
+// ... [skipping to bottom for export]
+// Wait, I will use a separate replacement chunk for the bottom
 
 const createEmployeeService = async (employeeData, createdBy) => {
   const existingUser = await findByEmailOrPhone(employeeData.email, employeeData.phone);
@@ -88,10 +91,15 @@ const updateEmployeeStatusService = async (id, status) => {
   return await updateEmployeeStatusById(id, status);
 };
 
+const getEmployeeStatsService = async () => {
+  return await getEmployeeStats();
+};
+
 module.exports = { 
   createEmployeeService, 
   getEmployeeListService, 
   getEmployeeByIdService,
   updateEmployeeService,
-  updateEmployeeStatusService
+  updateEmployeeStatusService,
+  getEmployeeStatsService
 };

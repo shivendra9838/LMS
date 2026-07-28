@@ -58,4 +58,11 @@ const updateEmployeeStatusById = async (id, status) => {
   return await Employee.findByIdAndUpdate(id, { status }, { new: true }).select('-password -__v');
 };
 
-module.exports = { findByEmailOrPhone, createEmployee, getEmployees, getEmployeeById, updateEmployeeById, updateEmployeeStatusById };
+const getEmployeeStats = async () => {
+  const totalEmployees = await Employee.countDocuments();
+  const activeEmployees = await Employee.countDocuments({ status: 'ACTIVE' });
+  const inactiveEmployees = await Employee.countDocuments({ status: 'INACTIVE' });
+  return { totalEmployees, activeEmployees, inactiveEmployees };
+};
+
+module.exports = { findByEmailOrPhone, createEmployee, getEmployees, getEmployeeById, updateEmployeeById, updateEmployeeStatusById, getEmployeeStats };
