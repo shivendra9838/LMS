@@ -22,7 +22,7 @@ const EmployeeList = () => {
       setLoading(true);
       const res = await api.get(`/employees?page=${page}&limit=10&search=${search}`);
       setEmployees(res.data.data);
-      setTotalPages(res.data.pagination.pages);
+      setTotalPages(res.data.meta.totalPages);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to fetch employees');
     } finally {
