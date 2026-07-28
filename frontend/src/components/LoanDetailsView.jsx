@@ -10,7 +10,9 @@ export default function LoanDetailsView({ isAdmin }) {
   const navigate = useNavigate();
   const [loan, setLoan] = useState(null);
   const [timeline, setTimeline] = useState([]);
+  const [collections, setCollections] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
     fetchData();
@@ -18,12 +20,14 @@ export default function LoanDetailsView({ isAdmin }) {
 
   const fetchData = async () => {
     try {
-      const [loanRes, timeRes] = await Promise.all([
+      const [loanRes, timeRes, colRes] = await Promise.all([
         api.get(`/loans/${id}`),
-        api.get(`/loans/${id}/timeline`)
+        api.get(`/loans/${id}/timeline`),
+        api.get(`/collections/history/${id}`)
       ]);
       setLoan(loanRes.data.data);
       setTimeline(timeRes.data.data);
+      setCollections(colRes.data.data);
     } catch (error) {
       toast.error('Failed to load loan details');
       navigate(isAdmin ? '/admin/loans' : '/employee/customers');
@@ -54,8 +58,35 @@ export default function LoanDetailsView({ isAdmin }) {
         >
           &larr; Back
         </button>
+        </button>
       </div>
 
+      <div className="border-b border-gray-200 mb-6">
+        <nav className="-mb-px flex space-x-8">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'overview'
+                ? 'border-indigo-500 text-indigo-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Overview
+          </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'history'
+                ? 'border-indigo-500 text-indigo-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Collection History
+          </button>
+        </nav>
+      </div>
+
+      {activeTab === 'overview' ? (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           {/* Financials Card */}
@@ -138,6 +169,65 @@ export default function LoanDetailsView({ isAdmin }) {
           </div>
         </div>
       </div>
+      ) : (
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+          <h2 className="text-lg font-medium text-gray-900">Collection History</h2>
+          <span className="bg-indigo-100 text-indigo-800 py-1 px-3 rounded-full text-xs font-semibold">
+            {collections.length} Records
+          </span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Col #</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Day</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mode</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Collected By</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {collections.map((col) => (
+                <tr key={col._id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {new Date(col.paymentDate).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{col.collectionNumber}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Day {col.loanScheduleId?.dayNumber}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+                    ₹{col.amountReceived.toLocaleString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{col.paymentMode}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      col.status === 'PAID' ? 'bg-green-100 text-green-800' :
+                      col.status === 'PARTIAL' ? 'bg-blue-100 text-blue-800' :
+                      col.status === 'MISSED' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {col.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {col.collectedBy?.name || 'SYSTEM'}
+                  </td>
+                </tr>
+              ))}
+              {collections.length === 0 && (
+                <tr>
+                  <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
+                    No collection history found for this loan.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      )}
     </div>
   );
 }

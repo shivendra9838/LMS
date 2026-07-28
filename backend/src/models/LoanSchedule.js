@@ -23,7 +23,7 @@ const loanScheduleSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['PENDING', 'PAID', 'MISSED'],
+    enum: ['PENDING', 'PAID', 'MISSED', 'PARTIAL'],
     default: 'PENDING',
     index: true
   },

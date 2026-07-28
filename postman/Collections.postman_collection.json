@@ -1,0 +1,148 @@
+{
+	"info": {
+		"name": "Collections",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Today's Collection",
+			"request": {
+				"method": "GET",
+				"header": [
+					{ "key": "Authorization", "value": "Bearer {{employee_token}}" }
+				],
+				"url": { "raw": "http://localhost:5000/api/collections/today", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "collections", "today"] }
+			}
+		},
+		{
+			"name": "Record Payment",
+			"request": {
+				"method": "POST",
+				"header": [
+					{ "key": "Authorization", "value": "Bearer {{employee_token}}" },
+					{ "key": "Content-Type", "value": "application/json" }
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"loanScheduleId\": \"{{schedule_id}}\",\n    \"amountReceived\": 100,\n    \"paymentMode\": \"CASH\"\n}"
+				},
+				"url": { "raw": "http://localhost:5000/api/collections", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "collections"] }
+			}
+		},
+		{
+			"name": "Partial Payment",
+			"request": {
+				"method": "POST",
+				"header": [
+					{ "key": "Authorization", "value": "Bearer {{employee_token}}" },
+					{ "key": "Content-Type", "value": "application/json" }
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"loanScheduleId\": \"{{schedule_id}}\",\n    \"amountReceived\": 50,\n    \"paymentMode\": \"UPI\"\n}"
+				},
+				"url": { "raw": "http://localhost:5000/api/collections", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "collections"] }
+			}
+		},
+		{
+			"name": "Missed Payment",
+			"request": {
+				"method": "POST",
+				"header": [
+					{ "key": "Authorization", "value": "Bearer {{employee_token}}" },
+					{ "key": "Content-Type", "value": "application/json" }
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"loanScheduleId\": \"{{schedule_id}}\",\n    \"isMissed\": true,\n    \"remarks\": \"Customer Not Home\"\n}"
+				},
+				"url": { "raw": "http://localhost:5000/api/collections", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "collections"] }
+			}
+		},
+		{
+			"name": "Extra Payment",
+			"request": {
+				"method": "POST",
+				"header": [
+					{ "key": "Authorization", "value": "Bearer {{employee_token}}" },
+					{ "key": "Content-Type", "value": "application/json" }
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"loanScheduleId\": \"{{schedule_id}}\",\n    \"amountReceived\": 200,\n    \"paymentMode\": \"CASH\"\n}"
+				},
+				"url": { "raw": "http://localhost:5000/api/collections", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "collections"] }
+			}
+		},
+		{
+			"name": "History",
+			"request": {
+				"method": "GET",
+				"header": [
+					{ "key": "Authorization", "value": "Bearer {{employee_token}}" }
+				],
+				"url": { "raw": "http://localhost:5000/api/collections/history/{{loan_id}}", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "collections", "history", "{{loan_id}}"] }
+			}
+		},
+		{
+			"name": "Unauthorized",
+			"request": {
+				"method": "POST",
+				"header": [
+					{ "key": "Authorization", "value": "Bearer {{another_employee_token}}" },
+					{ "key": "Content-Type", "value": "application/json" }
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"loanScheduleId\": \"{{schedule_id}}\",\n    \"amountReceived\": 100,\n    \"paymentMode\": \"CASH\"\n}"
+				},
+				"url": { "raw": "http://localhost:5000/api/collections", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "collections"] }
+			}
+		},
+		{
+			"name": "Duplicate Payment",
+			"request": {
+				"method": "POST",
+				"header": [
+					{ "key": "Authorization", "value": "Bearer {{employee_token}}" },
+					{ "key": "Content-Type", "value": "application/json" }
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"loanScheduleId\": \"{{already_paid_schedule_id}}\",\n    \"amountReceived\": 100,\n    \"paymentMode\": \"CASH\"\n}"
+				},
+				"url": { "raw": "http://localhost:5000/api/collections", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "collections"] }
+			}
+		},
+		{
+			"name": "Closed Loan",
+			"request": {
+				"method": "POST",
+				"header": [
+					{ "key": "Authorization", "value": "Bearer {{employee_token}}" },
+					{ "key": "Content-Type", "value": "application/json" }
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"loanScheduleId\": \"{{closed_loan_schedule_id}}\",\n    \"amountReceived\": 100,\n    \"paymentMode\": \"CASH\"\n}"
+				},
+				"url": { "raw": "http://localhost:5000/api/collections", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "collections"] }
+			}
+		},
+		{
+			"name": "Invalid Schedule",
+			"request": {
+				"method": "POST",
+				"header": [
+					{ "key": "Authorization", "value": "Bearer {{employee_token}}" },
+					{ "key": "Content-Type", "value": "application/json" }
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"loanScheduleId\": \"invalid_id_123\",\n    \"amountReceived\": 100,\n    \"paymentMode\": \"CASH\"\n}"
+				},
+				"url": { "raw": "http://localhost:5000/api/collections", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "collections"] }
+			}
+		}
+	]
+}

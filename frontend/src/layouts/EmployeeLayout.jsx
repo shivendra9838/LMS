@@ -44,6 +44,19 @@ const EmployeeLayout = () => {
             <Users size={20} />
             My Customers
           </NavLink>
+          <NavLink
+            to="/employee/collections/today"
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
+                isActive ? 'bg-indigo-50 text-indigo-700 font-medium shadow-sm' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+              }`
+            }
+          >
+            <div className="relative">
+              <span className="w-5 h-5 flex items-center justify-center font-bold text-lg leading-none">₹</span>
+            </div>
+            Today's Collections
+          </NavLink>
         </nav>
 
         <div className="p-4 border-t border-gray-100">

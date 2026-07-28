@@ -12,6 +12,7 @@ import Customers from './pages/admin/Customers';
 import AdminCustomerDetails from './pages/admin/CustomerDetails';
 import AdminLoans from './pages/admin/Loans';
 import AdminLoanDetails from './pages/admin/LoanDetails';
+import MissedPayments from './pages/admin/MissedPayments';
 import AdminLayout from './layouts/AdminLayout';
 
 // Employee Pages
@@ -23,6 +24,8 @@ import EmployeeCustomerDetails from './pages/employee/CustomerDetails';
 import EmployeeDashboard from './pages/employee/Dashboard';
 import AddLoan from './pages/employee/AddLoan';
 import EmployeeLoanDetails from './pages/employee/LoanDetails';
+import TodayCollections from './pages/employee/TodayCollections';
+import Receipt from './pages/employee/Receipt';
 import EmployeeLayout from './layouts/EmployeeLayout';
 
 function App() {
@@ -44,6 +47,7 @@ function App() {
           <Route path="customers/:id/edit" element={<EditCustomer />} />
           <Route path="loans" element={<AdminLoans />} />
           <Route path="loans/:id" element={<AdminLoanDetails />} />
+          <Route path="notifications" element={<MissedPayments />} />
         </Route>
 
         {/* Employee Routes */}
@@ -57,6 +61,8 @@ function App() {
           <Route path="customers/:id/edit" element={<EditCustomer />} />
           <Route path="customers/:id/loans/new" element={<AddLoan />} />
           <Route path="loans/:id" element={<EmployeeLoanDetails />} />
+          <Route path="collections/today" element={<TodayCollections />} />
+          <Route path="collections/receipt/:id" element={<Receipt />} />
         </Route>
         
         {/* Fallback */}

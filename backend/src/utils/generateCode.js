@@ -22,4 +22,12 @@ const generateLoanNumber = async () => {
   return `LN${(numericPart + 1).toString().padStart(6, '0')}`;
 };
 
-module.exports = { generateEmployeeCode, generateCustomerCode, generateLoanNumber };
+const generateCollectionNumber = async () => {
+  const Collection = require('../models/Collection'); // Require here to avoid circular dependencies if any
+  const lastCollection = await Collection.findOne().sort({ collectionNumber: -1 });
+  if (!lastCollection || !lastCollection.collectionNumber) return 'COL000001';
+  const numericPart = parseInt(lastCollection.collectionNumber.replace('COL', ''), 10);
+  return `COL${(numericPart + 1).toString().padStart(6, '0')}`;
+};
+
+module.exports = { generateEmployeeCode, generateCustomerCode, generateLoanNumber, generateCollectionNumber };

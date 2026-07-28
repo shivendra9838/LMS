@@ -78,6 +78,9 @@ const loanSchema = new mongoose.Schema({
     required: true,
     min: 0
   },
+  lastPaymentDate: {
+    type: Date
+  },
   status: {
     type: String,
     enum: ['ACTIVE', 'COMPLETED', 'CLOSED', 'DEFAULTED', 'CANCELLED'],
