@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+}
+
+body {
+  @apply bg-gray-50 text-gray-900 antialiased;
+}
+
+.glass-panel {
+  @apply bg-white border border-gray-100 shadow-sm rounded-xl overflow-hidden;
+}
+
+.input-field {
+  @apply w-full px-4 py-2.5 rounded-lg border border-gray-200 bg-white
+         focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 
+         transition-all duration-200 outline-none shadow-sm;
+}
+
+.btn-primary {
+  @apply px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg 
+         shadow-md shadow-blue-500/20 transition-all duration-200 
+         active:scale-[0.98] font-medium flex items-center justify-center gap-2;
+}
+
+.btn-secondary {
+  @apply px-4 py-2.5 bg-white hover:bg-gray-50 text-gray-700 rounded-lg 
+         border border-gray-200 shadow-sm transition-all duration-200 
+         active:scale-[0.98] font-medium flex items-center justify-center gap-2;
+}
+
+.animate-in {
+  animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideUpFade {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
