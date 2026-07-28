@@ -21,9 +21,8 @@ app.use(cookieParser()); // Parse cookies
 // ==========================================
 // 2. ROUTES
 // ==========================================
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ success: true, message: 'API is running' });
-});
+const healthRoutes = require('./routes/health.routes');
+app.use('/api/health', healthRoutes);
 // Future module routes will be mounted here (e.g., app.use('/api/auth', authRoutes))
 
 const notFound = require('./middlewares/notFound.middleware');
