@@ -53,6 +53,15 @@ const employeeSchema = new mongoose.Schema({
   timestamps: true
 });
 
+const { hashPassword } = require('../utils/password');
+
+employeeSchema.pre('save', async function() {
+  if (!this.isModified('password')) {
+    return;
+  }
+  this.password = await hashPassword(this.password);
+});
+
 const Employee = mongoose.model('Employee', employeeSchema);
 
 module.exports = Employee;
