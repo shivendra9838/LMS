@@ -22,7 +22,10 @@ app.use(cookieParser()); // Parse cookies
 // 2. ROUTES
 // ==========================================
 const healthRoutes = require('./routes/health.routes');
+const authRoutes = require('./routes/auth.routes');
+
 app.use('/api/health', healthRoutes);
+app.use('/api/auth', authRoutes);
 // Future module routes will be mounted here (e.g., app.use('/api/auth', authRoutes))
 
 const notFound = require('./middlewares/notFound.middleware');
