@@ -10,6 +10,8 @@ import EditEmployee from './pages/admin/EditEmployee';
 import EmployeeDetails from './pages/admin/EmployeeDetails';
 import Customers from './pages/admin/Customers';
 import AdminCustomerDetails from './pages/admin/CustomerDetails';
+import AdminLoans from './pages/admin/Loans';
+import AdminLoanDetails from './pages/admin/LoanDetails';
 import AdminLayout from './layouts/AdminLayout';
 
 // Employee Pages
@@ -18,6 +20,9 @@ import EmployeeCustomerList from './pages/employee/CustomerList';
 import AddCustomer from './pages/employee/AddCustomer';
 import EditCustomer from './pages/employee/EditCustomer';
 import EmployeeCustomerDetails from './pages/employee/CustomerDetails';
+import EmployeeDashboard from './pages/employee/Dashboard';
+import AddLoan from './pages/employee/AddLoan';
+import EmployeeLoanDetails from './pages/employee/LoanDetails';
 import EmployeeLayout from './layouts/EmployeeLayout';
 
 function App() {
@@ -37,17 +42,21 @@ function App() {
           <Route path="customers" element={<Customers />} />
           <Route path="customers/:id" element={<AdminCustomerDetails />} />
           <Route path="customers/:id/edit" element={<EditCustomer />} />
+          <Route path="loans" element={<AdminLoans />} />
+          <Route path="loans/:id" element={<AdminLoanDetails />} />
         </Route>
 
         {/* Employee Routes */}
         <Route path="/employee/login" element={<EmployeeLogin />} />
         <Route path="/employee" element={<EmployeeLayout />}>
-          <Route index element={<Navigate to="/employee/customers" replace />} />
-          <Route path="dashboard" element={<Navigate to="/employee/customers" replace />} />
+          <Route index element={<Navigate to="/employee/dashboard" replace />} />
+          <Route path="dashboard" element={<EmployeeDashboard />} />
           <Route path="customers" element={<EmployeeCustomerList />} />
           <Route path="customers/add" element={<AddCustomer />} />
           <Route path="customers/:id" element={<EmployeeCustomerDetails />} />
           <Route path="customers/:id/edit" element={<EditCustomer />} />
+          <Route path="customers/:id/loans/new" element={<AddLoan />} />
+          <Route path="loans/:id" element={<EmployeeLoanDetails />} />
         </Route>
         
         {/* Fallback */}

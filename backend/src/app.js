@@ -26,13 +26,16 @@ const authRoutes = require('./routes/auth.routes');
 const adminRoutes = require('./routes/admin.routes');
 const employeeRoutes = require('./routes/employee.routes');
 const customerRoutes = require('./routes/customer.routes');
+const loanRoutes = require('./routes/loan.routes');
+const dashboardRoutes = require('./routes/dashboard.routes');
 
 app.use('/api/health', healthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/employees', employeeRoutes);
 app.use('/api/customers', customerRoutes);
-// Future module routes will be mounted here (e.g., app.use('/api/auth', authRoutes))
+app.use('/api/loans', loanRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 const notFound = require('./middlewares/notFound.middleware');
 const errorHandler = require('./middlewares/error.middleware');

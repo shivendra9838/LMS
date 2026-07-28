@@ -1,7 +1,7 @@
 import { Edit2, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import api from '../../services/api';
+import api from '../services/api';
 import StatusBadge from './StatusBadge';
 
 const EmployeeTable = ({ employees, loading, refresh }) => {

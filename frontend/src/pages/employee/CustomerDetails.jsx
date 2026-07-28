@@ -43,6 +43,25 @@ const CustomerDetails = () => {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Customer Details</h1>
+        <div className="space-x-3">
+          {customer.status === 'ACTIVE' && (
+            <button
+              onClick={() => navigate(`/employee/customers/${customer._id}/loans/new`)}
+              className="bg-emerald-600 text-white px-4 py-2 rounded-md hover:bg-emerald-700 transition-colors font-medium shadow-sm"
+            >
+              + Issue Loan
+            </button>
+          )}
+          <button
+            onClick={() => navigate(`/employee/customers/${customer._id}/edit`)}
+            className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors shadow-sm"
+          >
+            Edit Customer
+          </button>
+        </div>
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <CustomerCard 

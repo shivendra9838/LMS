@@ -1,4 +1,5 @@
 const Customer = require('../models/Customer');
+const Loan = require('../models/Loan');
 
 const generateEmployeeCode = async () => {
   const lastEmployee = await Employee.findOne().sort({ employeeCode: -1 });
@@ -14,4 +15,11 @@ const generateCustomerCode = async () => {
   return `CUS${(numericPart + 1).toString().padStart(6, '0')}`;
 };
 
-module.exports = { generateEmployeeCode, generateCustomerCode };
+const generateLoanNumber = async () => {
+  const lastLoan = await Loan.findOne().sort({ loanNumber: -1 });
+  if (!lastLoan || !lastLoan.loanNumber) return 'LN000001';
+  const numericPart = parseInt(lastLoan.loanNumber.replace('LN', ''), 10);
+  return `LN${(numericPart + 1).toString().padStart(6, '0')}`;
+};
+
+module.exports = { generateEmployeeCode, generateCustomerCode, generateLoanNumber };
