@@ -1,4 +1,4 @@
-const { createEmployeeService } = require('../services/employee.service');
+const { createEmployeeService, getEmployeeListService } = require('../services/employee.service');
 
 const createEmployee = async (req, res, next) => {
   try {
@@ -20,4 +20,21 @@ const createEmployee = async (req, res, next) => {
   }
 };
 
-module.exports = { createEmployee };
+const getEmployeeList = async (req, res, next) => {
+  try {
+    const result = await getEmployeeListService(req.query);
+    res.status(200).json({
+      success: true,
+      data: result.employees,
+      meta: {
+        total: result.total,
+        page: result.page,
+        totalPages: result.totalPages
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { createEmployee, getEmployeeList };

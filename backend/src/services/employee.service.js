@@ -1,4 +1,4 @@
-const { findByEmailOrPhone, createEmployee } = require('../repositories/employee.repository');
+const { findByEmailOrPhone, createEmployee, getEmployees } = require('../repositories/employee.repository');
 const { generateEmployeeCode } = require('../utils/generateCode');
 
 const createEmployeeService = async (employeeData, createdBy) => {
@@ -29,4 +29,8 @@ const createEmployeeService = async (employeeData, createdBy) => {
   return await createEmployee(newEmployee);
 };
 
-module.exports = { createEmployeeService };
+const getEmployeeListService = async (query) => {
+  return await getEmployees(query);
+};
+
+module.exports = { createEmployeeService, getEmployeeListService };

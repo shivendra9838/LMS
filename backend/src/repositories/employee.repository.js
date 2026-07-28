@@ -9,4 +9,41 @@ const createEmployee = async (employeeData) => {
   return await employee.save();
 };
 
-module.exports = { findByEmailOrPhone, createEmployee };
+const getEmployees = async (query) => {
+  const { search, sort, page = 1, limit = 10 } = query;
+  
+  const filter = {};
+  if (search) {
+    filter.$or = [
+      { name: { $regex: search, $options: 'i' } },
+      { employeeCode: { $regex: search, $options: 'i' } },
+      { email: { $regex: search, $options: 'i' } }
+    ];
+  }
+
+  const sortOptions = {};
+  if (sort) {
+    sortOptions[sort] = 1; // default to ascending
+  } else {
+    sortOptions.createdAt = -1;
+  }
+
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+
+  const employees = await Employee.find(filter)
+    .select('employeeCode name city area status -_id')
+    .sort(sortOptions)
+    .skip(skip)
+    .limit(parseInt(limit));
+
+  const total = await Employee.countDocuments(filter);
+
+  return {
+    employees,
+    total,
+    page: parseInt(page),
+    totalPages: Math.ceil(total / parseInt(limit))
+  };
+};
+
+module.exports = { findByEmailOrPhone, createEmployee, getEmployees };
