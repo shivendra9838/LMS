@@ -44,7 +44,8 @@ const collectionSchema = new mongoose.Schema({
   paymentDate: {
     type: Date,
     required: true,
-    default: Date.now
+    default: Date.now,
+    index: true
   },
   paymentMode: {
     type: String,
@@ -54,7 +55,8 @@ const collectionSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: ['PAID', 'PARTIAL', 'MISSED', 'EXTRA_PAYMENT', 'WAIVED'],
-    required: true
+    required: true,
+    index: true
   },
   remarks: {
     type: String,

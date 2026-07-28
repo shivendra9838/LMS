@@ -9,7 +9,8 @@ const customerSchema = new mongoose.Schema({
   employeeId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Employee',
-    required: true
+    required: true,
+    index: true
   },
   name: {
     type: String,
@@ -44,11 +45,13 @@ const customerSchema = new mongoose.Schema({
   },
   city: {
     type: String,
-    required: true
+    required: true,
+    index: true
   },
   area: {
     type: String,
-    required: true
+    required: true,
+    index: true
   },
   landmark: {
     type: String
@@ -66,7 +69,8 @@ const customerSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: ['ACTIVE', 'INACTIVE'],
-    default: 'ACTIVE'
+    default: 'ACTIVE',
+    index: true
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,

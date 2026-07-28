@@ -1,12 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const reportController = require('../controllers/report.controller');
-const { authenticate, authorize } = require('../middlewares/auth.middleware');
+const { authenticate } = require('../middlewares/auth.middleware');
+const { authorizeRoles } = require('../middlewares/role.middleware');
 const validate = require('../middlewares/validate.middleware');
 const reportValidator = require('../validators/report.validator');
 
 // All reports are accessible only by ADMIN
-router.use(authenticate, authorize(['ADMIN']));
+router.use(authenticate, authorizeRoles('ADMIN'));
 
 router.get('/daily', reportValidator.validateReportFilters, validate, reportController.getDailyReports);
 router.get('/employees', reportValidator.validateReportFilters, validate, reportController.getEmployeeReports);

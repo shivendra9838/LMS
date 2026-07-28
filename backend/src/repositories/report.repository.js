@@ -3,7 +3,7 @@ const Collection = require('../models/Collection');
 const mongoose = require('mongoose');
 
 const getDailyReports = async (filters) => {
-  const { date, employeeId, area, city } = filters;
+  const { date, startDate, endDate, employeeId, area, city } = filters;
 
   const matchStage = {};
   if (date) {
@@ -12,45 +12,40 @@ const getDailyReports = async (filters) => {
     const end = new Date(d);
     end.setHours(23, 59, 59, 999);
     matchStage.date = { $gte: d, $lte: end };
+  } else if (startDate && endDate) {
+    const s = new Date(startDate);
+    s.setHours(0, 0, 0, 0);
+    const e = new Date(endDate);
+    e.setHours(23, 59, 59, 999);
+    matchStage.date = { $gte: s, $lte: e };
   }
 
-  // Lookup Loan to apply Employee/Area/City filters
-  const lookupLoan = {
-    $lookup: {
-      from: 'loans',
-      localField: 'loanId',
-      foreignField: '_id',
-      as: 'loan'
-    }
-  };
-  
-  const lookupCustomer = {
-    $lookup: {
-      from: 'customers',
-      localField: 'loan.customerId',
-      foreignField: '_id',
-      as: 'customer'
-    }
-  };
+  // Pre-filter loans to avoid heavy aggregation lookups
+  if (employeeId || area || city) {
+    const Loan = require('../models/Loan');
+    const Customer = require('../models/Customer');
 
-  const loanMatchStage = {};
-  if (employeeId) loanMatchStage['loan.employeeId'] = new mongoose.Types.ObjectId(employeeId);
-  
-  const customerMatchStage = {};
-  if (area) customerMatchStage['customer.area'] = area;
-  if (city) customerMatchStage['customer.city'] = city;
+    let customerQuery = {};
+    if (area) customerQuery.area = area;
+    if (city) customerQuery.city = city;
 
-  // We want to group by Date
-  // But wait, LoanSchedule's date is a full timestamp. We need to format it to YYYY-MM-DD.
+    let customerIds = null;
+    if (Object.keys(customerQuery).length > 0) {
+      const customers = await Customer.find(customerQuery).select('_id');
+      customerIds = customers.map(c => c._id);
+    }
+
+    let loanQuery = {};
+    if (employeeId) loanQuery.employeeId = new mongoose.Types.ObjectId(employeeId);
+    if (customerIds) loanQuery.customerId = { $in: customerIds };
+
+    const loans = await Loan.find(loanQuery).select('_id');
+    const loanIds = loans.map(l => l._id);
+    matchStage.loanId = { $in: loanIds };
+  }
+
   const pipeline = [
     { $match: matchStage },
-    lookupLoan,
-    { $unwind: '$loan' },
-    ...(Object.keys(loanMatchStage).length > 0 ? [{ $match: loanMatchStage }] : []),
-    lookupCustomer,
-    { $unwind: '$customer' },
-    ...(Object.keys(customerMatchStage).length > 0 ? [{ $match: customerMatchStage }] : []),
-    
     // Group by Date string
     {
       $group: {
@@ -312,61 +307,42 @@ const getAreaReports = async (filters) => {
 };
 const getOutstandingReports = async (filters) => {
   const Loan = require('../models/Loan');
+  const Customer = require('../models/Customer');
   const mongoose = require('mongoose');
 
   const { area, employeeId, status, minOutstanding, maxOutstanding } = filters;
-  const matchStage = {};
+  const query = {};
 
-  if (employeeId) matchStage.employeeId = new mongoose.Types.ObjectId(employeeId);
-  if (status) matchStage.status = status;
+  if (employeeId) query.employeeId = new mongoose.Types.ObjectId(employeeId);
+  if (status) query.status = status;
   
   if (minOutstanding || maxOutstanding) {
-    matchStage.remainingAmount = {};
-    if (minOutstanding) matchStage.remainingAmount.$gte = Number(minOutstanding);
-    if (maxOutstanding) matchStage.remainingAmount.$lte = Number(maxOutstanding);
+    query.remainingAmount = {};
+    if (minOutstanding) query.remainingAmount.$gte = Number(minOutstanding);
+    if (maxOutstanding) query.remainingAmount.$lte = Number(maxOutstanding);
   }
 
-  const pipeline = [
-    { $match: matchStage },
-    {
-      $lookup: {
-        from: 'customers',
-        localField: 'customerId',
-        foreignField: '_id',
-        as: 'customer'
-      }
-    },
-    { $unwind: '$customer' },
-    {
-      $lookup: {
-        from: 'employees',
-        localField: 'employeeId',
-        foreignField: '_id',
-        as: 'employee'
-      }
-    },
-    { $unwind: '$employee' },
-    // Filter by area on customer level
-    ...(area ? [{ $match: { 'customer.area': area } }] : []),
-    {
-      $project: {
-        loanNumber: 1,
-        customerName: '$customer.name',
-        employeeName: '$employee.name',
-        area: '$customer.area',
-        outstandingAmount: '$remainingAmount',
-        remainingDays: 1,
-        status: 1,
-        // Optional: you could lookup the most recent collection for lastPaymentDate
-        // but Loan model might already have a lastPaymentDate or we can compute it if needed
-        lastPayment: '$lastPaymentDate', // ensure this exists or update accordingly
-        _id: 0
-      }
-    },
-    { $sort: { outstandingAmount: -1 } }
-  ];
+  if (area) {
+    const customers = await Customer.find({ area }).select('_id');
+    query.customerId = { $in: customers.map(c => c._id) };
+  }
 
-  return await Loan.aggregate(pipeline);
+  const loans = await Loan.find(query)
+    .sort({ remainingAmount: -1 })
+    .populate({ path: 'customerId', select: 'name area' })
+    .populate({ path: 'employeeId', select: 'name' })
+    .lean();
+
+  return loans.map(loan => ({
+    loanNumber: loan.loanNumber,
+    customerName: loan.customerId ? loan.customerId.name : '',
+    employeeName: loan.employeeId ? loan.employeeId.name : '',
+    area: loan.customerId ? loan.customerId.area : '',
+    outstandingAmount: loan.remainingAmount,
+    remainingDays: loan.remainingDays,
+    status: loan.status,
+    lastPayment: loan.lastPaymentDate
+  }));
 };
 
 const getCollectionReports = async (filters) => {
@@ -453,6 +429,7 @@ const getExportData = async (type, filters) => {
     const Collection = require('../models/Collection');
     // Common collection export pipeline
     const pipeline = [
+      { $sort: { paymentDate: -1 } },
       {
         $lookup: {
           from: 'loans', localField: 'loanId', foreignField: '_id', as: 'loan'
@@ -484,8 +461,7 @@ const getExportData = async (type, filters) => {
           paymentMode: 1,
           date: '$paymentDate'
         }
-      },
-      { $sort: { date: -1 } }
+      }
     ];
     return await Collection.aggregate(pipeline);
   }
@@ -493,6 +469,7 @@ const getExportData = async (type, filters) => {
   if (type === 'outstanding' || type === 'loans') {
     const Loan = require('../models/Loan');
     const pipeline = [
+      { $sort: { remainingAmount: -1 } },
       {
         $lookup: {
           from: 'customers', localField: 'customerId', foreignField: '_id', as: 'customer'
@@ -517,8 +494,7 @@ const getExportData = async (type, filters) => {
           status: 1,
           loanDate: 1
         }
-      },
-      { $sort: { loanDate: -1 } }
+      }
     ];
     return await Loan.aggregate(pipeline);
   }

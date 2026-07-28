@@ -3,7 +3,13 @@ const Customer = require('../models/Customer');
 const LoanSchedule = require('../models/LoanSchedule');
 const Collection = require('../models/Collection');
 
+const { getCache, setCache } = require('../utils/cache');
+
 const getAdminDashboardStats = async () => {
+  const cacheKey = 'admin_dashboard_stats';
+  const cachedData = await getCache(cacheKey);
+  if (cachedData) return cachedData;
+
   const Employee = require('../models/Employee');
   
   // Employee Stats
@@ -124,7 +130,7 @@ const getAdminDashboardStats = async () => {
     ? ((colStats.todaysRevenue / sStats.totalDueAmountToday) * 100) 
     : 0;
 
-  return {
+  const result = {
     totalEmployees: eStats.totalEmployees,
     activeEmployees: eStats.activeEmployees,
     totalCustomers: cStats.totalCustomers,
@@ -141,6 +147,9 @@ const getAdminDashboardStats = async () => {
     averageCollection: averageCollection,
     collectionEfficiency: collectionEfficiency
   };
+
+  await setCache(cacheKey, result, 300);
+  return result;
 };
 
 const getEmployeeDashboardStats = async (employeeId) => {

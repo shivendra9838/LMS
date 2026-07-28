@@ -1,0 +1,289 @@
+{
+	"info": {
+		"_postman_id": "c1f7289b-8419-4a0b-9999-lmsreports01",
+		"name": "Microfinance LMS - Reports Engine",
+		"description": "Postman collection for testing LMS Phase 8 Reports & Dashboard KPIs with Authentication and Filter Validations.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Reports",
+			"item": [
+				{
+					"name": "Dashboard KPIs",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/dashboard/admin",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"dashboard",
+								"admin"
+							]
+						},
+						"description": "Fetch top Admin Dashboard KPI stats (Loans, Revenue, Collections, Efficiency)."
+					},
+					"response": []
+				},
+				{
+					"name": "Daily Report",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/reports/daily?startDate=2026-07-01&endDate=2026-07-31",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"reports",
+								"daily"
+							],
+							"query": [
+								{
+									"key": "startDate",
+									"value": "2026-07-01"
+								},
+								{
+									"key": "endDate",
+									"value": "2026-07-31"
+								}
+							]
+						},
+						"description": "Fetch daily aggregation report over a custom date range."
+					},
+					"response": []
+				},
+				{
+					"name": "Employee Report",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/reports/employees",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"reports",
+								"employees"
+							]
+						},
+						"description": "Fetch performance stats, collection efficiency, and total outstanding per employee."
+					},
+					"response": []
+				},
+				{
+					"name": "Area Report",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/reports/area",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"reports",
+								"area"
+							]
+						},
+						"description": "Fetch area and city level aggregations of active loans and collections."
+					},
+					"response": []
+				},
+				{
+					"name": "Outstanding Report",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/reports/outstanding",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"reports",
+								"outstanding"
+							]
+						},
+						"description": "Fetch outstanding loan amounts sorted by highest remaining balance."
+					},
+					"response": []
+				},
+				{
+					"name": "Collection Report",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/reports/collections?period=this_month",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"reports",
+								"collections"
+							],
+							"query": [
+								{
+									"key": "period",
+									"value": "this_month"
+								}
+							]
+						},
+						"description": "Fetch collection totals broken down by payment mode (Cash, UPI, Bank Transfer, Cheque)."
+					},
+					"response": []
+				},
+				{
+					"name": "Excel Export",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/reports/export/daily",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"reports",
+								"export",
+								"daily"
+							]
+						},
+						"description": "Download formatted Excel report file."
+					},
+					"response": []
+				},
+				{
+					"name": "Unauthorized Access",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{employeeToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/reports/daily",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"reports",
+								"daily"
+							]
+						},
+						"description": "Test RBAC: Employee token should return 403 Forbidden."
+					},
+					"response": []
+				},
+				{
+					"name": "Invalid Filters",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/reports/daily?startDate=invalid-date",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"reports",
+								"daily"
+							],
+							"query": [
+								{
+									"key": "startDate",
+									"value": "invalid-date"
+								}
+							]
+						},
+						"description": "Test express-validator validation error returning 400 Bad Request."
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:5000",
+			"type": "string"
+		},
+		{
+			"key": "adminToken",
+			"value": "YOUR_ADMIN_JWT_TOKEN_HERE",
+			"type": "string"
+		},
+		{
+			"key": "employeeToken",
+			"value": "YOUR_EMPLOYEE_JWT_TOKEN_HERE",
+			"type": "string"
+		}
+	]
+}
