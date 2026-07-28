@@ -46,4 +46,8 @@ const getEmployees = async (query) => {
   };
 };
 
-module.exports = { findByEmailOrPhone, createEmployee, getEmployees };
+const getEmployeeById = async (id) => {
+  return await Employee.findById(id).select('-password -__v');
+};
+
+module.exports = { findByEmailOrPhone, createEmployee, getEmployees, getEmployeeById };

@@ -1,4 +1,4 @@
-const { findByEmailOrPhone, createEmployee, getEmployees } = require('../repositories/employee.repository');
+const { findByEmailOrPhone, createEmployee, getEmployees, getEmployeeById } = require('../repositories/employee.repository');
 const { generateEmployeeCode } = require('../utils/generateCode');
 
 const createEmployeeService = async (employeeData, createdBy) => {
@@ -33,4 +33,14 @@ const getEmployeeListService = async (query) => {
   return await getEmployees(query);
 };
 
-module.exports = { createEmployeeService, getEmployeeListService };
+const getEmployeeByIdService = async (id) => {
+  const employee = await getEmployeeById(id);
+  if (!employee) {
+    const error = new Error('Employee Not Found');
+    error.status = 404;
+    throw error;
+  }
+  return employee;
+};
+
+module.exports = { createEmployeeService, getEmployeeListService, getEmployeeByIdService };

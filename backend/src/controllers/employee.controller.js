@@ -1,4 +1,4 @@
-const { createEmployeeService, getEmployeeListService } = require('../services/employee.service');
+const { createEmployeeService, getEmployeeListService, getEmployeeByIdService } = require('../services/employee.service');
 
 const createEmployee = async (req, res, next) => {
   try {
@@ -37,4 +37,19 @@ const getEmployeeList = async (req, res, next) => {
   }
 };
 
-module.exports = { createEmployee, getEmployeeList };
+const getEmployee = async (req, res, next) => {
+  try {
+    const employee = await getEmployeeByIdService(req.params.id);
+    res.status(200).json({
+      success: true,
+      data: employee
+    });
+  } catch (error) {
+    if (error.name === 'CastError' || error.message === 'Employee Not Found') {
+      return res.status(404).json({ success: false, message: 'Employee Not Found' });
+    }
+    next(error);
+  }
+};
+
+module.exports = { createEmployee, getEmployeeList, getEmployee };
