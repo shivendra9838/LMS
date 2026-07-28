@@ -1,8 +1,15 @@
 const { createLoanService, getLoanListService, getLoanByIdService, updateLoanStatusService } = require('../services/loan.service');
+const { logAccess } = require('../utils/logger');
 
 const createLoanController = async (req, res, next) => {
   try {
     const loan = await createLoanService(req.body, req.user);
+    logAccess('LOAN_CREATED', {
+      loanId: loan._id,
+      loanNumber: loan.loanNumber,
+      userId: req.user.id,
+      userRole: req.user.role
+    });
     res.status(201).json({ success: true, message: 'Loan Created Successfully', data: loan });
   } catch (error) {
     next(error);

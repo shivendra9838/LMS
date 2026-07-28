@@ -6,6 +6,7 @@ const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
 const { requestMetricsMiddleware } = require('./utils/requestMetrics');
 const responseFormatter = require('./middlewares/response.middleware');
+const { accessLoggerMiddleware } = require('./utils/logger');
 
 const app = express();
 
@@ -21,6 +22,7 @@ app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
 app.use(cookieParser()); // Parse cookies
 app.use(requestMetricsMiddleware); // Track API request and failure counts
 app.use(responseFormatter); // Normalize all JSON API responses
+app.use(accessLoggerMiddleware); // Persist API access logs
 
 // ==========================================
 // 2. ROUTES
@@ -60,6 +62,12 @@ app.use(`${apiV1Prefix}/branches`, branchRoutes);
 app.use(`${apiV1Prefix}/cash-book`, cashBookRoutes);
 app.use(`${apiV1Prefix}/system-health`, systemHealthRoutes);
 app.use(`${apiV1Prefix}/expenses`, expenseRoutes);
+
+if (process.env.ENABLE_TEST_ROUTES === 'true') {
+  app.get(`${apiV1Prefix}/test-error`, () => {
+    throw new Error('Simulated internal failure with file path D:/desktop/LMS/backend/src/app.js');
+  });
+}
 
 const notFound = require('./middlewares/notFound.middleware');
 const errorHandler = require('./middlewares/error.middleware');

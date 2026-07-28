@@ -1,4 +1,5 @@
 const { getTodayCollectionService, recordCollectionService, getCollectionHistoryService, getCollectionReceiptService } = require('../services/collection.service');
+const { logAccess } = require('../utils/logger');
 
 const getTodayCollection = async (req, res, next) => {
   try {
@@ -16,6 +17,13 @@ const getTodayCollection = async (req, res, next) => {
 const recordCollection = async (req, res, next) => {
   try {
     const data = await recordCollectionService(req.body, req.user);
+    logAccess('COLLECTION_UPDATED', {
+      collectionId: data._id,
+      collectionNumber: data.collectionNumber,
+      loanId: data.loanId,
+      userId: req.user.id,
+      userRole: req.user.role
+    });
     res.status(201).json({
       success: true,
       message: 'Collection recorded successfully',

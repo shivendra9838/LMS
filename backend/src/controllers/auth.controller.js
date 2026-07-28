@@ -1,5 +1,6 @@
 const { loginService } = require('../services/auth.service');
 const { createAuditLog } = require('../utils/auditLogger');
+const { logAccess } = require('../utils/logger');
 
 const login = async (req, res, next) => {
   try {
@@ -7,12 +8,18 @@ const login = async (req, res, next) => {
     const result = await loginService(email, password);
     
     // Attach user to req for auditLogger helper
-    req.user = { id: result.user._id, role: result.user.role };
+    req.user = { id: result.user.id, role: result.user.role };
     createAuditLog(req, {
       action: `${result.user.role}_LOGIN`,
       module: 'AUTH',
-      referenceId: result.user._id,
-      newValue: { email: result.user.email, role: result.user.role }
+      referenceId: result.user.id,
+      newValue: { email, role: result.user.role }
+    });
+    logAccess('USER_LOGIN', {
+      userId: result.user.id,
+      userRole: result.user.role,
+      email,
+      ipAddress: req.ip
     });
 
     res.status(200).json({
@@ -22,6 +29,11 @@ const login = async (req, res, next) => {
     });
   } catch (error) {
     if (error.message === 'User Not Found' || error.message === 'Invalid Credentials' || error.message === 'Employee account is inactive') {
+      logAccess('FAILED_LOGIN', {
+        email: req.body?.email,
+        reason: error.message,
+        ipAddress: req.ip
+      });
       return res.status(error.status || 400).json({
         success: false,
         message: error.message
