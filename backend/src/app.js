@@ -26,21 +26,13 @@ app.get('/api/health', (req, res) => {
 });
 // Future module routes will be mounted here (e.g., app.use('/api/auth', authRoutes))
 
+const notFound = require('./middlewares/notFound.middleware');
+const errorHandler = require('./middlewares/error.middleware');
+
 // ==========================================
 // 3. ERROR HANDLER
 // ==========================================
-// 404 Not Found Handler
-app.use((req, res, next) => {
-  res.status(404).json({ success: false, message: 'Route not found' });
-});
-
-// Global Error Handler
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(err.status || 500).json({
-    success: false,
-    message: err.message || 'Internal Server Error'
-  });
-});
+app.use(notFound);
+app.use(errorHandler);
 
 module.exports = app;
