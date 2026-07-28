@@ -1,21 +1,17 @@
-const Employee = require('../models/Employee');
+const Customer = require('../models/Customer');
 
 const generateEmployeeCode = async () => {
-  // Find the employee with the highest employeeCode
   const lastEmployee = await Employee.findOne().sort({ employeeCode: -1 });
-  
-  if (!lastEmployee || !lastEmployee.employeeCode) {
-    return 'EMP0001';
-  }
-
-  const lastCode = lastEmployee.employeeCode; // e.g. "EMP0005"
-  const numericPart = parseInt(lastCode.replace('EMP', ''), 10);
-  const nextNumeric = numericPart + 1;
-  
-  // Pad with leading zeros to maintain a minimum of 4 digits
-  const nextCode = `EMP${nextNumeric.toString().padStart(4, '0')}`;
-  
-  return nextCode;
+  if (!lastEmployee || !lastEmployee.employeeCode) return 'EMP0001';
+  const numericPart = parseInt(lastEmployee.employeeCode.replace('EMP', ''), 10);
+  return `EMP${(numericPart + 1).toString().padStart(4, '0')}`;
 };
 
-module.exports = { generateEmployeeCode };
+const generateCustomerCode = async () => {
+  const lastCustomer = await Customer.findOne().sort({ customerCode: -1 });
+  if (!lastCustomer || !lastCustomer.customerCode) return 'CUS000001';
+  const numericPart = parseInt(lastCustomer.customerCode.replace('CUS', ''), 10);
+  return `CUS${(numericPart + 1).toString().padStart(6, '0')}`;
+};
+
+module.exports = { generateEmployeeCode, generateCustomerCode };

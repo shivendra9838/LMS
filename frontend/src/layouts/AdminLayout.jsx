@@ -44,6 +44,18 @@ const AdminLayout = () => {
             <Users size={20} />
             Employees
           </NavLink>
+
+          <NavLink
+            to="/admin/customers"
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
+                isActive ? 'bg-blue-50 text-blue-700 font-medium shadow-sm' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+              }`
+            }
+          >
+            <Users size={20} />
+            Customers
+          </NavLink>
         </nav>
 
         <div className="p-4 border-t border-gray-100">
