@@ -30,6 +30,7 @@ const loanRoutes = require('./routes/loan.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
 const collectionRoutes = require('./routes/collection.routes');
 const notificationRoutes = require('./routes/notification.routes');
+const reportRoutes = require('./routes/report.routes');
 
 app.use('/api/health', healthRoutes);
 app.use('/api/auth', authRoutes);
@@ -40,6 +41,7 @@ app.use('/api/loans', loanRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/collections', collectionRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/reports', reportRoutes);
 
 const notFound = require('./middlewares/notFound.middleware');
 const errorHandler = require('./middlewares/error.middleware');
