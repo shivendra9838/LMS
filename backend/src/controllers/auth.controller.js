@@ -1,10 +1,20 @@
 const { loginService } = require('../services/auth.service');
+const { createAuditLog } = require('../utils/auditLogger');
 
 const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
     const result = await loginService(email, password);
     
+    // Attach user to req for auditLogger helper
+    req.user = { id: result.user._id, role: result.user.role };
+    createAuditLog(req, {
+      action: `${result.user.role}_LOGIN`,
+      module: 'AUTH',
+      referenceId: result.user._id,
+      newValue: { email: result.user.email, role: result.user.role }
+    });
+
     res.status(200).json({
       success: true,
       token: result.token,

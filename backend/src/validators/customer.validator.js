@@ -4,8 +4,7 @@ const validateCreateCustomer = [
   check('name').notEmpty().withMessage('Name is required').isLength({ min: 2 }).withMessage('Name must be at least 2 characters'),
   check('mobile').notEmpty().withMessage('Mobile is required').matches(/^[0-9]{10}$/).withMessage('Invalid mobile format'),
   check('address').notEmpty().withMessage('Address is required'),
-  check('city').notEmpty().withMessage('City is required'),
-  check('area').notEmpty().withMessage('Area is required'),
+  check('employeeId').optional().isMongoId().withMessage('Valid Employee ID is required'),
   check('age').notEmpty().withMessage('Age is required').isInt({ min: 19 }).withMessage('Age must be greater than 18'),
   
   (req, res, next) => {

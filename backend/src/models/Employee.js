@@ -31,6 +31,11 @@ const employeeSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  branchId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Branch',
+    index: true
+  },
   area: {
     type: String,
     required: true

@@ -48,6 +48,11 @@ const customerSchema = new mongoose.Schema({
     required: true,
     index: true
   },
+  branchId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Branch',
+    index: true
+  },
   area: {
     type: String,
     required: true,

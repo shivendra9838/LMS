@@ -16,6 +16,9 @@ const createEmployee = async (req, res, next) => {
         message: error.message
       });
     }
+    if (error.status) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
     next(error);
   }
 };
@@ -67,6 +70,9 @@ const updateEmployeeController = async (req, res, next) => {
     if (error.message === 'Phone already exists') {
       return res.status(400).json({ success: false, message: error.message });
     }
+    if (error.status) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
     next(error);
   }
 };
@@ -100,6 +106,7 @@ const getEmployeeProfile = async (req, res, next) => {
     res.status(200).json({
       employeeCode: employee.employeeCode,
       name: employee.name,
+      branch: employee.branchId,
       city: employee.city,
       area: employee.area
     });

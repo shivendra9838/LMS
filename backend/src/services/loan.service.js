@@ -7,6 +7,7 @@ const { createTimelineEntry } = require('../repositories/customerTimeline.reposi
 const { createLoanTimelineEntry } = require('../repositories/loanTimeline.repository');
 const { createBulkSchedules } = require('../repositories/loanSchedule.repository');
 const Customer = require('../models/Customer');
+const { recordCashBookEntry, getPerformerModel } = require('./cashBook.service');
 
 const createLoanService = async (loanData, user) => {
   const { customerId, loanAmount, interestPercent, durationDays, loanDate } = loanData;
@@ -97,6 +98,19 @@ const createLoanService = async (loanData, user) => {
   // 10. Log Timeline Event for Loan
   await createLoanTimelineEntry(createdLoan._id, 'Loan Created', 'Loan account opened and verified.');
   await createLoanTimelineEntry(createdLoan._id, 'Schedule Generated', 'Daily payment schedule generated successfully.');
+
+  // 11. Cash Book: loan disbursement is cash out
+  await recordCashBookEntry({
+    date: startDate,
+    type: 'NEW_LOAN',
+    direction: 'CASH_OUT',
+    cashOut: loanAmount,
+    description: `Loan ${loanNumber} given`,
+    referenceModel: 'Loan',
+    referenceId: createdLoan._id,
+    createdBy: user.id,
+    createdByModel: getPerformerModel(user.role)
+  });
 
   return createdLoan;
 };

@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const compression = require('compression');
 const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
+const { requestMetricsMiddleware } = require('./utils/requestMetrics');
 
 const app = express();
 
@@ -17,6 +18,7 @@ app.use(morgan('dev')); // HTTP request logger
 app.use(express.json()); // Parse JSON bodies
 app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
 app.use(cookieParser()); // Parse cookies
+app.use(requestMetricsMiddleware); // Track API request and failure counts
 
 // ==========================================
 // 2. ROUTES
@@ -31,6 +33,12 @@ const dashboardRoutes = require('./routes/dashboard.routes');
 const collectionRoutes = require('./routes/collection.routes');
 const notificationRoutes = require('./routes/notification.routes');
 const reportRoutes = require('./routes/report.routes');
+const auditLogRoutes = require('./routes/auditLog.routes');
+const activityTimelineRoutes = require('./routes/activityTimeline.routes');
+const branchRoutes = require('./routes/branch.routes');
+const cashBookRoutes = require('./routes/cashBook.routes');
+const systemHealthRoutes = require('./routes/systemHealth.routes');
+const expenseRoutes = require('./routes/expense.routes');
 
 app.use('/api/health', healthRoutes);
 app.use('/api/auth', authRoutes);
@@ -42,6 +50,12 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/collections', collectionRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/audit-logs', auditLogRoutes);
+app.use('/api/timeline', activityTimelineRoutes);
+app.use('/api/branches', branchRoutes);
+app.use('/api/cash-book', cashBookRoutes);
+app.use('/api/system-health', systemHealthRoutes);
+app.use('/api/expenses', expenseRoutes);
 
 const notFound = require('./middlewares/notFound.middleware');
 const errorHandler = require('./middlewares/error.middleware');

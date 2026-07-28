@@ -1,12 +1,20 @@
 const { createCustomerService, getCustomerListService, getCustomerByIdService, updateCustomerService, updateCustomerStatusService, getCustomerTimelineService } = require('../services/customer.service');
+const { createAuditLog } = require('../utils/auditLogger');
 
 const createCustomerController = async (req, res, next) => {
   try {
     const createdBy = req.user.id;
     const role = req.user.role;
     
-    await createCustomerService(req.body, createdBy, role);
+    const customer = await createCustomerService(req.body, createdBy, role);
     
+    createAuditLog(req, {
+      action: 'CUSTOMER_CREATED',
+      module: 'CUSTOMER',
+      referenceId: customer._id,
+      newValue: customer
+    });
+
     res.status(201).json({
       success: true,
       message: 'Customer Created Successfully'
@@ -14,6 +22,9 @@ const createCustomerController = async (req, res, next) => {
   } catch (error) {
     if (error.message === 'Mobile already exists') {
       return res.status(400).json({ success: false, message: error.message });
+    }
+    if (error.status) {
+      return res.status(error.status).json({ success: false, message: error.message });
     }
     next(error);
   }
@@ -53,11 +64,21 @@ const getCustomerController = async (req, res, next) => {
 
 const updateCustomerController = async (req, res, next) => {
   try {
-    const customer = await updateCustomerService(req.params.id, req.body, req.user);
+    const oldCustomer = await getCustomerByIdService(req.params.id, req.user);
+    const updatedCustomer = await updateCustomerService(req.params.id, req.body, req.user);
+    
+    createAuditLog(req, {
+      action: 'CUSTOMER_UPDATED',
+      module: 'CUSTOMER',
+      referenceId: req.params.id,
+      oldValue: oldCustomer,
+      newValue: updatedCustomer
+    });
+
     res.status(200).json({
       success: true,
       message: 'Customer updated successfully',
-      data: customer
+      data: updatedCustomer
     });
   } catch (error) {
     if (error.name === 'CastError' || error.message === 'Customer Not Found') {
@@ -76,11 +97,21 @@ const updateCustomerStatusController = async (req, res, next) => {
     if (!status) {
       return res.status(400).json({ success: false, message: 'Status is required' });
     }
-    const customer = await updateCustomerStatusService(req.params.id, status, req.user);
+    const oldCustomer = await getCustomerByIdService(req.params.id, req.user);
+    const updatedCustomer = await updateCustomerStatusService(req.params.id, status, req.user);
+    
+    createAuditLog(req, {
+      action: 'STATUS_CHANGED',
+      module: 'CUSTOMER',
+      referenceId: req.params.id,
+      oldValue: { status: oldCustomer.status },
+      newValue: { status }
+    });
+
     res.status(200).json({
       success: true,
       message: 'Customer status updated successfully',
-      data: customer
+      data: updatedCustomer
     });
   } catch (error) {
     if (error.name === 'CastError' || error.message === 'Customer Not Found') {

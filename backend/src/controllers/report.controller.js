@@ -62,6 +62,7 @@ const getCollectionReports = async (req, res, next) => {
 };
 
 const { getExportDataService } = require('../services/report.service');
+const { createAuditLog } = require('../utils/auditLogger');
 
 const exportReports = async (req, res, next) => {
   try {
@@ -69,6 +70,13 @@ const exportReports = async (req, res, next) => {
     const data = await getExportDataService(type, req.query);
     const dateStr = new Date().toISOString().split('T')[0];
     const filename = `${type}-report-${dateStr}`;
+
+    createAuditLog(req, {
+      action: 'REPORT_EXPORTED',
+      module: 'REPORT',
+      newValue: { type, filters: req.query }
+    });
+
     return exportToExcel(res, data, type.toUpperCase(), filename);
   } catch (error) {
     next(error);

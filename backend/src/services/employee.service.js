@@ -1,5 +1,6 @@
 const { findByEmailOrPhone, createEmployee, getEmployees, getEmployeeById, updateEmployeeById, updateEmployeeStatusById, getEmployeeStats } = require('../repositories/employee.repository');
 const { generateEmployeeCode } = require('../utils/generateCode');
+const { getBranchByIdService, ensureBranchArea } = require('./branch.service');
 
 // ... [skipping to bottom for export]
 // Wait, I will use a separate replacement chunk for the bottom
@@ -21,9 +22,16 @@ const createEmployeeService = async (employeeData, createdBy) => {
 
   const employeeCode = await generateEmployeeCode();
   const password = Math.random().toString(36).slice(-8) + 'A1!'; // Basic complexity logic
+  let branch;
+
+  if (employeeData.branchId) {
+    branch = await getBranchByIdService(employeeData.branchId);
+    ensureBranchArea(branch, employeeData.area);
+  }
 
   const newEmployee = {
     ...employeeData,
+    city: employeeData.city || branch?.name,
     employeeCode,
     password,
     createdBy
@@ -62,12 +70,22 @@ const updateEmployeeService = async (id, updateData) => {
       throw error;
     }
   }
+  
+  let branch = null;
+  const branchId = updateData.branchId || employee.branchId?._id || employee.branchId;
+  const area = updateData.area || employee.area;
+
+  if (branchId) {
+    branch = await getBranchByIdService(branchId);
+    ensureBranchArea(branch, area);
+  }
 
   const allowedUpdates = {
     name: updateData.name || employee.name,
     phone: updateData.phone || employee.phone,
-    area: updateData.area || employee.area,
-    city: updateData.city || employee.city,
+    branchId,
+    area,
+    city: updateData.city || branch?.name || employee.city,
     status: updateData.status || employee.status
   };
 

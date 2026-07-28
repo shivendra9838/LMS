@@ -1,5 +1,6 @@
 const { findByMobile, createCustomer, getCustomerList, getCustomerById, updateCustomer, updateCustomerStatus } = require('../repositories/customer.repository');
 const { createTimelineEntry, getTimelineByCustomerId } = require('../repositories/customerTimeline.repository');
+const { recordActivity } = require('../utils/activityLogger');
 const { generateCustomerCode } = require('../utils/generateCode');
 const Employee = require('../models/Employee'); // We need this to resolve employee code to ID
 
@@ -14,18 +15,37 @@ const createCustomerService = async (customerData, createdBy, role) => {
 
   // Generate code
   const customerCode = await generateCustomerCode();
+  const assignedEmployeeId = role === 'EMPLOYEE' ? createdBy : (customerData.employeeId || createdBy);
+  const assignedEmployee = await Employee.findById(assignedEmployeeId);
+
+  if (!assignedEmployee) {
+    const error = new Error('Employee Not Found');
+    error.status = 404;
+    throw error;
+  }
 
   const newCustomer = {
     ...customerData,
     customerCode,
     createdBy,
-    employeeId: createdBy // Since employeeId is required and Admin or Employee creates it
+    employeeId: assignedEmployee._id,
+    branchId: assignedEmployee.branchId,
+    city: assignedEmployee.city || customerData.city,
+    area: assignedEmployee.area
   };
 
   const createdCustomer = await createCustomer(newCustomer);
   
   // Log timeline event
   await createTimelineEntry(createdCustomer._id, 'Customer Created', 'Customer profile was created in the system');
+  await recordActivity({
+    entityType: 'CUSTOMER',
+    entityId: createdCustomer._id,
+    action: 'CUSTOMER_CREATED',
+    description: 'Customer profile was created in the system',
+    performedBy: createdBy,
+    performerModel: role === 'EMPLOYEE' ? 'Employee' : 'Admin'
+  });
 
   return createdCustomer;
 };
@@ -101,6 +121,9 @@ const updateCustomerService = async (id, updateData, user) => {
   // Filter out non-editable fields
   delete updateData.customerCode;
   delete updateData.employeeId;
+  delete updateData.branchId;
+  delete updateData.city;
+  delete updateData.area;
   delete updateData.status; // Handled by separate API
 
   if (updateData.mobile && updateData.mobile !== customer.mobile) {

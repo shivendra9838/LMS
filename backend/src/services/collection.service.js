@@ -6,6 +6,7 @@ const Loan = require('../models/Loan');
 const LoanTimeline = require('../models/LoanTimeline');
 const Notification = require('../models/Notification');
 const { generateCollectionNumber } = require('../utils/generateCode');
+const { recordCashBookEntry, getPerformerModel } = require('./cashBook.service');
 
 const getTodayCollectionService = async (user) => {
   if (user.role !== 'EMPLOYEE') {
@@ -242,6 +243,20 @@ const recordCollectionService = async (data, user) => {
       performedBy: user.id === 'SYSTEM' ? loan.employeeId._id : user.id,
       remarks: colNum
     }], { session });
+
+    if (amountReceived > 0) {
+      await recordCashBookEntry({
+        date: newCollection.paymentDate,
+        type: 'LOAN_RECOVERY',
+        direction: 'CASH_IN',
+        cashIn: amountReceived,
+        description: `Collection ${colNum} received`,
+        referenceModel: 'Collection',
+        referenceId: newCollection._id,
+        createdBy: user.id === 'SYSTEM' ? loan.employeeId._id : user.id,
+        createdByModel: getPerformerModel(user.role)
+      }, session);
+    }
 
     await session.commitTransaction();
     session.endSession();
