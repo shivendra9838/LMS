@@ -49,4 +49,10 @@ const getMe = async (req, res, next) => {
   }
 };
 
-module.exports = { login, getMe };
+const logout = (req, res) => {
+  // Since JWT is stateless, logout is handled by the client destroying the token.
+  // This endpoint is provided for consistency and future-proofing (e.g. cookie clearing).
+  res.status(200).json({ success: true, message: 'Logged out successfully' });
+};
+
+module.exports = { login, getMe, logout };
