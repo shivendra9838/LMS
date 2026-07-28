@@ -1,4 +1,4 @@
-const { createEmployeeService, getEmployeeListService, getEmployeeByIdService } = require('../services/employee.service');
+const { createEmployeeService, getEmployeeListService, getEmployeeByIdService, updateEmployeeService, updateEmployeeStatusService } = require('../services/employee.service');
 
 const createEmployee = async (req, res, next) => {
   try {
@@ -52,4 +52,46 @@ const getEmployee = async (req, res, next) => {
   }
 };
 
-module.exports = { createEmployee, getEmployeeList, getEmployee };
+const updateEmployeeController = async (req, res, next) => {
+  try {
+    const employee = await updateEmployeeService(req.params.id, req.body);
+    res.status(200).json({
+      success: true,
+      message: 'Employee updated successfully',
+      data: employee
+    });
+  } catch (error) {
+    if (error.name === 'CastError' || error.message === 'Employee Not Found') {
+      return res.status(404).json({ success: false, message: 'Employee Not Found' });
+    }
+    if (error.message === 'Phone already exists') {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+    next(error);
+  }
+};
+
+const updateEmployeeStatusController = async (req, res, next) => {
+  try {
+    const { status } = req.body;
+    if (!status) {
+      return res.status(400).json({ success: false, message: 'Status is required' });
+    }
+    const employee = await updateEmployeeStatusService(req.params.id, status);
+    res.status(200).json({
+      success: true,
+      message: 'Employee status updated successfully',
+      data: employee
+    });
+  } catch (error) {
+    if (error.name === 'CastError' || error.message === 'Employee Not Found') {
+      return res.status(404).json({ success: false, message: 'Employee Not Found' });
+    }
+    if (error.message === 'Invalid status') {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+    next(error);
+  }
+};
+
+module.exports = { createEmployee, getEmployeeList, getEmployee, updateEmployeeController, updateEmployeeStatusController };

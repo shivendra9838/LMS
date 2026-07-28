@@ -50,4 +50,12 @@ const getEmployeeById = async (id) => {
   return await Employee.findById(id).select('-password -__v');
 };
 
-module.exports = { findByEmailOrPhone, createEmployee, getEmployees, getEmployeeById };
+const updateEmployeeById = async (id, updateData) => {
+  return await Employee.findByIdAndUpdate(id, updateData, { new: true, runValidators: true }).select('-password -__v');
+};
+
+const updateEmployeeStatusById = async (id, status) => {
+  return await Employee.findByIdAndUpdate(id, { status }, { new: true }).select('-password -__v');
+};
+
+module.exports = { findByEmailOrPhone, createEmployee, getEmployees, getEmployeeById, updateEmployeeById, updateEmployeeStatusById };

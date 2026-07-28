@@ -12,7 +12,7 @@ const loginService = async (email, password) => {
   }
 
   if (user.isActive === false || user.status === 'INACTIVE') {
-    const error = new Error('Account is inactive');
+    const error = new Error('Employee account is inactive');
     error.status = 403;
     throw error;
   }

@@ -1,4 +1,4 @@
-const { findByEmailOrPhone, createEmployee, getEmployees, getEmployeeById } = require('../repositories/employee.repository');
+const { findByEmailOrPhone, createEmployee, getEmployees, getEmployeeById, updateEmployeeById, updateEmployeeStatusById } = require('../repositories/employee.repository');
 const { generateEmployeeCode } = require('../utils/generateCode');
 
 const createEmployeeService = async (employeeData, createdBy) => {
@@ -43,4 +43,55 @@ const getEmployeeByIdService = async (id) => {
   return employee;
 };
 
-module.exports = { createEmployeeService, getEmployeeListService, getEmployeeByIdService };
+const updateEmployeeService = async (id, updateData) => {
+  const employee = await getEmployeeById(id);
+  if (!employee) {
+    const error = new Error('Employee Not Found');
+    error.status = 404;
+    throw error;
+  }
+  
+  if (updateData.phone && updateData.phone !== employee.phone) {
+    const existing = await findByEmailOrPhone(null, updateData.phone);
+    if (existing && existing._id.toString() !== id.toString()) {
+      const error = new Error('Phone already exists');
+      error.status = 400;
+      throw error;
+    }
+  }
+
+  const allowedUpdates = {
+    name: updateData.name || employee.name,
+    phone: updateData.phone || employee.phone,
+    area: updateData.area || employee.area,
+    city: updateData.city || employee.city,
+    status: updateData.status || employee.status
+  };
+
+  return await updateEmployeeById(id, allowedUpdates);
+};
+
+const updateEmployeeStatusService = async (id, status) => {
+  const employee = await getEmployeeById(id);
+  if (!employee) {
+    const error = new Error('Employee Not Found');
+    error.status = 404;
+    throw error;
+  }
+  
+  if (!['ACTIVE', 'INACTIVE'].includes(status)) {
+    const error = new Error('Invalid status');
+    error.status = 400;
+    throw error;
+  }
+
+  return await updateEmployeeStatusById(id, status);
+};
+
+module.exports = { 
+  createEmployeeService, 
+  getEmployeeListService, 
+  getEmployeeByIdService,
+  updateEmployeeService,
+  updateEmployeeStatusService
+};
