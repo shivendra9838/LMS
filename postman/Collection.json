@@ -1,0 +1,8 @@
+{
+  "info": {
+    "name": "LMS API Collection",
+    "description": "Postman collection for LMS project APIs.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": []
+}
