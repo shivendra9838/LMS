@@ -1,140 +1,81 @@
 {
 	"info": {
-		"name": "LMS Authentication",
+		"name": "LMS Authentication Tests",
 		"description": "Authentication endpoints for LMS",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
 		{
-			"name": "Authentication",
-			"item": [
-				{
-					"name": "Admin Login",
-					"request": {
-						"method": "POST",
-						"header": [
-							{ "key": "Content-Type", "value": "application/json" }
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"email\": \"admin@loan.com\",\n    \"password\": \"Admin@123\"\n}"
-						},
-						"url": {
-							"raw": "http://localhost:5000/api/auth/login",
-							"protocol": "http",
-							"host": [ "localhost" ],
-							"port": "5000",
-							"path": [ "api", "auth", "login" ]
-						}
-					}
+			"name": "Login as Admin",
+			"request": {
+				"method": "POST",
+				"header": [{ "key": "Content-Type", "value": "application/json" }],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"email\": \"admin@loan.com\",\n    \"password\": \"Admin@123\"\n}"
 				},
-				{
-					"name": "Employee Login",
-					"request": {
-						"method": "POST",
-						"header": [
-							{ "key": "Content-Type", "value": "application/json" }
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"email\": \"employee@loan.com\",\n    \"password\": \"Employee@123\"\n}"
-						},
-						"url": {
-							"raw": "http://localhost:5000/api/auth/login",
-							"protocol": "http",
-							"host": [ "localhost" ],
-							"port": "5000",
-							"path": [ "api", "auth", "login" ]
-						}
-					}
+				"url": { "raw": "http://localhost:5000/api/auth/login", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "auth", "login"] }
+			}
+		},
+		{
+			"name": "Login as Employee",
+			"request": {
+				"method": "POST",
+				"header": [{ "key": "Content-Type", "value": "application/json" }],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"email\": \"employee@loan.com\",\n    \"password\": \"Employee@123\"\n}"
 				},
-				{
-					"name": "Wrong Password",
-					"request": {
-						"method": "POST",
-						"header": [
-							{ "key": "Content-Type", "value": "application/json" }
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"email\": \"admin@loan.com\",\n    \"password\": \"WrongPassword!\"\n}"
-						},
-						"url": {
-							"raw": "http://localhost:5000/api/auth/login",
-							"protocol": "http",
-							"host": [ "localhost" ],
-							"port": "5000",
-							"path": [ "api", "auth", "login" ]
-						}
-					}
-				},
-				{
-					"name": "Wrong Email",
-					"request": {
-						"method": "POST",
-						"header": [
-							{ "key": "Content-Type", "value": "application/json" }
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"email\": \"wrong@loan.com\",\n    \"password\": \"Admin@123\"\n}"
-						},
-						"url": {
-							"raw": "http://localhost:5000/api/auth/login",
-							"protocol": "http",
-							"host": [ "localhost" ],
-							"port": "5000",
-							"path": [ "api", "auth", "login" ]
-						}
-					}
-				},
-				{
-					"name": "Protected Route (With Token)",
-					"request": {
-						"method": "GET",
-						"header": [
-							{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
-						],
-						"url": {
-							"raw": "http://localhost:5000/api/auth/me",
-							"protocol": "http",
-							"host": [ "localhost" ],
-							"port": "5000",
-							"path": [ "api", "auth", "me" ]
-						}
-					}
-				},
-				{
-					"name": "Protected Route (Without Token)",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "http://localhost:5000/api/auth/me",
-							"protocol": "http",
-							"host": [ "localhost" ],
-							"port": "5000",
-							"path": [ "api", "auth", "me" ]
-						}
-					}
-				},
-				{
-					"name": "Protected Route (Expired Token)",
-					"request": {
-						"method": "GET",
-						"header": [
-							{ "key": "Authorization", "value": "Bearer YOUR_EXPIRED_TOKEN_HERE" }
-						],
-						"url": {
-							"raw": "http://localhost:5000/api/auth/me",
-							"protocol": "http",
-							"host": [ "localhost" ],
-							"port": "5000",
-							"path": [ "api", "auth", "me" ]
-						}
-					}
-				}
-			]
+				"url": { "raw": "http://localhost:5000/api/auth/login", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "auth", "login"] }
+			}
+		},
+		{
+			"name": "Get Current User (/me)",
+			"request": {
+				"method": "GET",
+				"header": [{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }],
+				"url": { "raw": "http://localhost:5000/api/auth/me", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "auth", "me"] }
+			}
+		},
+		{
+			"name": "Admin Route (Admin Token)",
+			"request": {
+				"method": "GET",
+				"header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+				"url": { "raw": "http://localhost:5000/api/admin/dashboard", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "admin", "dashboard"] }
+			}
+		},
+		{
+			"name": "Admin Route (Employee Token → 403)",
+			"request": {
+				"method": "GET",
+				"header": [{ "key": "Authorization", "value": "Bearer {{employee_token}}" }],
+				"url": { "raw": "http://localhost:5000/api/admin/dashboard", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "admin", "dashboard"] }
+			}
+		},
+		{
+			"name": "Protected Route (No Token → 401)",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": { "raw": "http://localhost:5000/api/auth/me", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "auth", "me"] }
+			}
+		},
+		{
+			"name": "Invalid Token",
+			"request": {
+				"method": "GET",
+				"header": [{ "key": "Authorization", "value": "Bearer INVALID_TOKEN_123" }],
+				"url": { "raw": "http://localhost:5000/api/auth/me", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "auth", "me"] }
+			}
+		},
+		{
+			"name": "Expired Token",
+			"request": {
+				"method": "GET",
+				"header": [{ "key": "Authorization", "value": "Bearer YOUR_EXPIRED_TOKEN_HERE" }],
+				"url": { "raw": "http://localhost:5000/api/auth/me", "protocol": "http", "host": ["localhost"], "port": "5000", "path": ["api", "auth", "me"] }
+			}
 		}
 	]
 }

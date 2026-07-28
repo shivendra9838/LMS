@@ -11,6 +11,12 @@ const loginService = async (email, password) => {
     throw error;
   }
 
+  if (user.isActive === false || user.status === 'INACTIVE') {
+    const error = new Error('Account is inactive');
+    error.status = 403;
+    throw error;
+  }
+
   const isMatch = await comparePassword(password, user.password);
   
   if (!isMatch) {

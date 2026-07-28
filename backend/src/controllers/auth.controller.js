@@ -11,7 +11,7 @@ const login = async (req, res, next) => {
       user: result.user
     });
   } catch (error) {
-    if (error.message === 'User Not Found' || error.message === 'Invalid Credentials') {
+    if (error.message === 'User Not Found' || error.message === 'Invalid Credentials' || error.message === 'Account is inactive') {
       return res.status(error.status || 400).json({
         success: false,
         message: error.message
