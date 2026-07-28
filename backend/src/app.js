@@ -5,6 +5,7 @@ const compression = require('compression');
 const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
 const { requestMetricsMiddleware } = require('./utils/requestMetrics');
+const responseFormatter = require('./middlewares/response.middleware');
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.use(express.json()); // Parse JSON bodies
 app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
 app.use(cookieParser()); // Parse cookies
 app.use(requestMetricsMiddleware); // Track API request and failure counts
+app.use(responseFormatter); // Normalize all JSON API responses
 
 // ==========================================
 // 2. ROUTES

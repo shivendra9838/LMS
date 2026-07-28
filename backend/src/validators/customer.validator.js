@@ -1,28 +1,45 @@
-const { check, validationResult } = require('express-validator');
+const { body, param, query } = require('express-validator');
+const validate = require('../middlewares/validate.middleware');
 
 const validateCreateCustomer = [
-  check('name').notEmpty().withMessage('Name is required').isLength({ min: 2 }).withMessage('Name must be at least 2 characters'),
-  check('mobile').notEmpty().withMessage('Mobile is required').matches(/^[0-9]{10}$/).withMessage('Invalid mobile format'),
-  check('address').notEmpty().withMessage('Address is required'),
-  check('employeeId').optional().isMongoId().withMessage('Valid Employee ID is required'),
-  check('age').notEmpty().withMessage('Age is required').isInt({ min: 19 }).withMessage('Age must be greater than 18'),
-  
-  (req, res, next) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
-    next();
-  }
+  body('name').notEmpty().withMessage('Name is required').isLength({ min: 2 }).withMessage('Name must be at least 2 characters'),
+  body('customerCode').optional().matches(/^CUS[0-9]{6}$/).withMessage('Invalid customer code format'),
+  body('mobile').notEmpty().withMessage('Mobile is required').matches(/^[0-9]{10}$/).withMessage('Invalid mobile format'),
+  body('address').notEmpty().withMessage('Address is required'),
+  body('employeeId').optional().isMongoId().withMessage('Valid Employee ID is required'),
+  body('age').notEmpty().withMessage('Age is required').isInt({ min: 19 }).withMessage('Age must be greater than 18'),
+  validate
 ];
 
 const validateUpdateCustomer = [
-  check('mobile').optional().matches(/^[0-9]{10}$/).withMessage('Invalid mobile format'),
-  check('age').optional().isInt({ min: 19 }).withMessage('Age must be greater than 18'),
-  
-  (req, res, next) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
-    next();
-  }
+  body('customerCode').optional().matches(/^CUS[0-9]{6}$/).withMessage('Invalid customer code format'),
+  body('mobile').optional().matches(/^[0-9]{10}$/).withMessage('Invalid mobile format'),
+  body('age').optional().isInt({ min: 19 }).withMessage('Age must be greater than 18'),
+  validate
 ];
 
-module.exports = { validateCreateCustomer, validateUpdateCustomer };
+const validateCustomerStatus = [
+  body('status').isIn(['ACTIVE', 'INACTIVE']).withMessage('Invalid status'),
+  validate
+];
+
+const validateCustomerId = [
+  param('id').isMongoId().withMessage('Valid Customer ID is required'),
+  validate
+];
+
+const validateCustomerList = [
+  query('customerCode').optional().matches(/^CUS[0-9]{6}$/).withMessage('Invalid customer code format'),
+  query('employee').optional().matches(/^EMP[0-9]{4}$/).withMessage('Invalid employee code format'),
+  query('page').optional().isInt({ min: 1 }).withMessage('Page must be greater than 0'),
+  query('limit').optional().isInt({ min: 1 }).withMessage('Limit must be greater than 0'),
+  validate
+];
+
+module.exports = {
+  validateCreateCustomer,
+  validateUpdateCustomer,
+  validateCustomerStatus,
+  validateCustomerId,
+  validateCustomerList
+};

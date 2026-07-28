@@ -10,14 +10,20 @@ const {
   deleteExpenseController,
   getExpenseReportController
 } = require('../controllers/expense.controller');
+const {
+  validateCreateExpense,
+  validateUpdateExpense,
+  validateExpenseId,
+  validateExpenseQuery
+} = require('../validators/expense.validator');
 
 router.use(authenticate, authorizeRoles('ADMIN'));
 
-router.post('/', createExpenseController);
-router.get('/', getExpenseListController);
-router.get('/report', getExpenseReportController);
-router.get('/:id', getExpenseController);
-router.put('/:id', updateExpenseController);
-router.delete('/:id', deleteExpenseController);
+router.post('/', validateCreateExpense, createExpenseController);
+router.get('/', validateExpenseQuery, getExpenseListController);
+router.get('/report', validateExpenseQuery, getExpenseReportController);
+router.get('/:id', validateExpenseId, getExpenseController);
+router.put('/:id', validateExpenseId, validateUpdateExpense, updateExpenseController);
+router.delete('/:id', validateExpenseId, deleteExpenseController);
 
 module.exports = router;

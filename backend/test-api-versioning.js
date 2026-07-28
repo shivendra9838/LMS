@@ -24,7 +24,8 @@ async function testApiVersioning() {
     console.log('\n--- Step 2: New v1 route should return 200 ---');
     const healthRes = await axios.get(`${baseURL}/api/v1/health`);
     assert.strictEqual(healthRes.status, 200);
-    assert.strictEqual(healthRes.data.status, 'OK');
+    assert.strictEqual(healthRes.data.success, true);
+    assert.strictEqual(healthRes.data.data.status, 'OK');
     console.log('PASS: /api/v1/health returned 200');
 
     console.log('\nAPI Versioning tests passed.');

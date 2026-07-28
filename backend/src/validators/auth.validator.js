@@ -1,15 +1,17 @@
-const validateLogin = (req, res, next) => {
-  const { email, password } = req.body;
-  
-  if (!email) {
-    return res.status(400).json({ success: false, message: 'Email is required' });
-  }
-  
-  if (!password) {
-    return res.status(400).json({ success: false, message: 'Password is required' });
-  }
-  
-  next();
-};
+const { body } = require('express-validator');
+const validate = require('../middlewares/validate.middleware');
+
+const validateLogin = [
+  body('email')
+    .notEmpty()
+    .withMessage('Email is required')
+    .isEmail()
+    .withMessage('Invalid email format')
+    .normalizeEmail(),
+  body('password')
+    .notEmpty()
+    .withMessage('Password is required'),
+  validate
+];
 
 module.exports = { validateLogin };

@@ -9,7 +9,7 @@ const authenticate = (req, res, next) => {
     }
     
     if (!token) {
-      return res.status(401).json({ success: false, message: 'Unauthorized' });
+      return res.status(401).json({ success: false, message: 'Unauthorized', errors: [] });
     }
     
     const decoded = verifyToken(token);
@@ -17,7 +17,7 @@ const authenticate = (req, res, next) => {
     
     next();
   } catch (error) {
-    return res.status(401).json({ success: false, message: 'Unauthorized' });
+    return res.status(401).json({ success: false, message: 'Unauthorized', errors: [] });
   }
 };
 

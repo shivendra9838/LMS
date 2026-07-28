@@ -8,10 +8,11 @@ const {
   updateBranchController,
   deleteBranchController
 } = require('../controllers/branch.controller');
+const { validateCreateBranch, validateUpdateBranch, validateBranchId } = require('../validators/branch.validator');
 
-router.post('/', authenticate, authorizeRoles('ADMIN'), createBranchController);
+router.post('/', authenticate, authorizeRoles('ADMIN'), validateCreateBranch, createBranchController);
 router.get('/', authenticate, authorizeRoles('ADMIN', 'EMPLOYEE'), getBranchListController);
-router.put('/:id', authenticate, authorizeRoles('ADMIN'), updateBranchController);
-router.delete('/:id', authenticate, authorizeRoles('ADMIN'), deleteBranchController);
+router.put('/:id', authenticate, authorizeRoles('ADMIN'), validateBranchId, validateUpdateBranch, updateBranchController);
+router.delete('/:id', authenticate, authorizeRoles('ADMIN'), validateBranchId, deleteBranchController);
 
 module.exports = router;
