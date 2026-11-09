@@ -10,6 +10,8 @@ const { accessLoggerMiddleware } = require('./utils/logger');
 
 const app = express();
 
+app.set('trust proxy', 1); // Enable trusting reverse proxy headers on Render / cloud hosts
+
 // ==========================================
 // 1. MIDDLEWARES
 // ==========================================

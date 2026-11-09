@@ -35,24 +35,44 @@ async function requestCode(email,role,purpose='RESET',user,requestId) {
   if(!['ADMIN','EMPLOYEE'].includes(role)||!['RESET','VERIFY'].includes(purpose))throw fail('Invalid request');
   if(!emailConfiguration())throw Object.assign(new Error('Email is not configured. Contact Admin.'),{status:503});
   if(purpose==='VERIFY')await require('./settlement.service').authorize(user);
-  const account=await accountModel(role).findOne({...active(role),...(purpose==='VERIFY'?{_id:user.id}:{email:String(email).trim().toLowerCase()})}).lean();
-  const fake=requestId||crypto.randomBytes(24).toString('hex');if(!account)return fake;
+  let effectiveRole = role;
+  let account=await accountModel(role).findOne({...active(role),...(purpose==='VERIFY'?{_id:user.id}:{email:String(email).trim().toLowerCase()})}).lean();
+  if(!account && purpose==='RESET') {
+    const altRole = role === 'ADMIN' ? 'EMPLOYEE' : 'ADMIN';
+    const altAccount = await accountModel(altRole).findOne({...active(altRole), email: String(email).trim().toLowerCase()}).lean();
+    if (altAccount) {
+      account = altAccount;
+      effectiveRole = altRole;
+    }
+  }
+  const fake=requestId||crypto.randomBytes(24).toString('hex');
+  if(!account){
+    console.warn(`[OTP] Account lookup failed: no active account found in database matching "${email}"`);
+    return fake;
+  }
   const now=new Date(), code=String(crypto.randomInt(100000,1000000));
   await Challenge.init();
   // A unique account/purpose slot enforces cooldown across processes and restarts.
   let row;
-  const existing=await Challenge.findOne({accountId:account._id,role,purpose});
+  const existing=await Challenge.findOne({accountId:account._id,role:effectiveRole,purpose});
   if(existing){
     if(+existing.requestedAt>+now-60000)return fake;
     row=await Challenge.findOneAndUpdate({_id:existing.id,requestedAt:existing.requestedAt},{$set:{requestId:fake,emailHash:digest(account.email.toLowerCase()),codeHash:digest(fake+':'+code),attempts:0,expiresAt:new Date(+now+10*60000),requestedAt:now},$unset:{consumedAt:1}},{returnDocument:'after'});
   }else{
-    try{row=await Challenge.create({_id:fake,requestId:fake,accountId:account._id,role,purpose,emailHash:digest(account.email.toLowerCase()),codeHash:digest(fake+':'+code),expiresAt:new Date(+now+10*60000),requestedAt:now});}
+    try{row=await Challenge.create({_id:fake,requestId:fake,accountId:account._id,role:effectiveRole,purpose,emailHash:digest(account.email.toLowerCase()),codeHash:digest(fake+':'+code),expiresAt:new Date(+now+10*60000),requestedAt:now});}
     catch(error){if(error.code===11000)return fake;throw error;}
   }
   if(!row)return fake;
   // OTP exists only in memory and this message; persistence contains a keyed hash only.
-  try{await send(account.email,{title:purpose==='RESET'?'Password Reset OTP':'Verify Your Account Email',recipientName:account.name,category:'SECURITY',message:purpose==='RESET'?'We received a request to reset your Royal Enterprises account password. Use the verification code below to continue.':'Please verify your registered Royal Enterprises account email using the code below.',otp:{code,expiresAt:row.expiresAt}},'challenge:'+row.id+':'+now.getTime());}
-  catch{await Challenge.updateOne({_id:row.id,requestedAt:now},{$set:{expiresAt:new Date(0)}});throw Object.assign(new Error('Email could not be sent. Please try again later.'),{status:503});}
+  try{
+    console.log(`[OTP] Sending OTP code to ${account.email} (${effectiveRole}) via Gmail...`);
+    await send(account.email,{title:purpose==='RESET'?'Password Reset OTP':'Verify Your Account Email',recipientName:account.name,category:'SECURITY',message:purpose==='RESET'?'We received a request to reset your Royal Enterprises account password. Use the verification code below to continue.':'Please verify your registered Royal Enterprises account email using the code below.',otp:{code,expiresAt:row.expiresAt}},'challenge:'+row.id+':'+now.getTime());
+    console.log(`[OTP] OTP email successfully sent to ${account.email}`);
+  }catch(sendError){
+    console.error(`[OTP Error] Failed to send email to ${account.email}:`, sendError?.message || sendError);
+    await Challenge.updateOne({_id:row.id,requestedAt:now},{$set:{expiresAt:new Date(0)}});
+    throw Object.assign(new Error('Email could not be sent. Please try again later.'),{status:503});
+  }
   return fake;
 }
 async function confirmCode(body,user,expectedRole) {

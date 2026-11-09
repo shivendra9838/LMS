@@ -14,10 +14,17 @@ router.use(limiter);
 router.post('/otp/request',body('email').isString().trim().isLength({max:254}).isEmail().toLowerCase(),body('role').optional().isIn(['ADMIN','EMPLOYEE']),validate,(req,res)=>{
   if(!recovery.emailConfiguration())return res.status(503).json({success:false,message:'Email is not configured. Contact Admin.'});
   const challenge=require('crypto').randomBytes(24).toString('hex');
-  setImmediate(()=>require('../services/email.service').requestCode(req.body.email,role,'RESET',undefined,challenge).catch(()=>logError('OTP_DELIVERY_FAILED',new Error('Account recovery delivery failed'))));
+  setImmediate(async () => {
+    try {
+      await require('../services/email.service').requestCode(req.body.email, role, 'RESET', undefined, challenge);
+    } catch (err) {
+      console.error(`[OTP Error] Delivery failed for ${req.body.email}:`, err?.message || err);
+      logError('OTP_DELIVERY_FAILED', err || new Error('Account recovery delivery failed'));
+    }
+  });
   res.status(202).json({success:true,data:{challenge},message:'If an active account matches, a code will arrive shortly. Check spam. The code expires in 10 minutes.'});
 });
-router.post('/otp/reset',async(req,res,next)=>{try{await require('../services/email.service').confirmCode(req.body,undefined,role);res.json({success:true,message:'Password updated. Sign in with your new password.'});}catch(error){next(error);}});
+router.post('/otp/reset',async(req,res,next)=>{try{await require('../services/email.service').confirmCode(req.body,undefined,undefined);res.json({success:true,message:'Password updated. Sign in with your new password.'});}catch(error){next(error);}});
 
 if(role==='ADMIN')return router;
 
