@@ -1,4 +1,4 @@
-const { findByEmailOrPhone, createEmployee, getEmployees, getEmployeeById, updateEmployeeById, updateEmployeeStatusById, getEmployeeStats } = require('../repositories/employee.repository');
+const { findByEmailOrPhone, createEmployee, getEmployees, getEmployeeById, updateEmployeeById, updateEmployeeStatusById, resetEmployeePasswordById, getEmployeeStats } = require('../repositories/employee.repository');
 const { generateEmployeeCode } = require('../utils/generateCode');
 const { getBranchByIdService, ensureBranchArea } = require('./branch.service');
 
@@ -37,7 +37,14 @@ const createEmployeeService = async (employeeData, createdBy) => {
     createdBy
   };
 
-  return await createEmployee(newEmployee);
+  const employee = (await createEmployee(newEmployee)).toObject();
+  delete employee.password;
+  delete employee.__v;
+
+  return {
+    employee,
+    temporaryPassword: password
+  };
 };
 
 const getEmployeeListService = async (query) => {
@@ -88,6 +95,10 @@ const updateEmployeeService = async (id, updateData) => {
     city: updateData.city || branch?.name || employee.city,
     status: updateData.status || employee.status
   };
+  if(allowedUpdates.status==='INACTIVE'&&employee.status!=='INACTIVE'){
+    const dependencies=await require('./settings.service').dependencies(id);
+    if(!dependencies.canDeactivate)throw Object.assign(new Error('Resolve active loans, custody and unresolved settlements before deactivation'),{status:409});
+  }
 
   return await updateEmployeeById(id, allowedUpdates);
 };
@@ -105,8 +116,31 @@ const updateEmployeeStatusService = async (id, status) => {
     error.status = 400;
     throw error;
   }
+  if(status==='INACTIVE'){
+    const dependencies=await require('./settings.service').dependencies(id);
+    if(!dependencies.canDeactivate)throw Object.assign(new Error('Resolve active loans, custody and unresolved settlements before deactivation'),{status:409});
+  }
 
   return await updateEmployeeStatusById(id, status);
+};
+
+const resetEmployeePasswordService = async (id) => {
+  const password = Math.random().toString(36).slice(-8) + 'A1!';
+  const employee = await resetEmployeePasswordById(id, password);
+
+  if (!employee) {
+    const error = new Error('Employee Not Found');
+    error.status = 404;
+    throw error;
+  }
+
+  delete employee.password;
+  delete employee.__v;
+
+  return {
+    employee,
+    temporaryPassword: password
+  };
 };
 
 const getEmployeeStatsService = async () => {
@@ -119,5 +153,6 @@ module.exports = {
   getEmployeeByIdService,
   updateEmployeeService,
   updateEmployeeStatusService,
+  resetEmployeePasswordService,
   getEmployeeStatsService
 };

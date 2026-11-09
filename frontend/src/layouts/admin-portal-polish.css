@@ -1,0 +1,118 @@
+/* Admin-only presentation. Keep portal preferences and the white PDF paper intact. */
+.sidebar-brand .admin-sidebar-logo {
+  flex: 0 1 174px;
+  width: 174px;
+  max-width: calc(100% - 48px);
+  gap: 9px;
+  padding-block: 12px;
+}
+.sidebar-brand .admin-sidebar-logo > span:first-child {
+  width: 36px;
+  height: 36px;
+  max-width: 36px;
+  padding: 4px;
+}
+.sidebar-brand .admin-sidebar-logo .font-serif {
+  font-size: 10px;
+  line-height: 1.4;
+  letter-spacing: .025em;
+  white-space: nowrap;
+  color: #f2dfaa;
+}
+.sidebar-brand .admin-sidebar-logo .font-serif + span {
+  font-size: 9px;
+  line-height: 1.4;
+  color: #d1bd86;
+}
+.admin-kyc-page { min-width: 0; color: var(--ink); }
+.admin-kyc-page .kyc-page-header { gap: 18px; }
+.admin-kyc-page .kyc-page-header > div:first-child { min-width: 0; }
+.admin-kyc-page .kyc-page-actions { align-items: flex-start; gap: 8px; }
+.admin-kyc-page :is(.kyc-approval-banner, .kyc-review-banner) {
+  background: #211e17;
+  color: #f4ead0;
+  border: 1px solid #6b552b;
+  border-left: 3px solid #caa65b;
+  border-radius: 12px;
+  padding: 16px 18px;
+  font-size: 14px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.admin-kyc-page .kyc-review-banner strong { color: #efd18a; }
+.admin-kyc-page .kyc-approval-banner > span { flex: 1 1 360px; }
+.admin-kyc-page .kyc-approval-banner > button {
+  color: #f1d38e;
+  background: #30291b;
+  border: 1px solid #7d6536;
+  border-radius: 8px;
+  padding: 9px 12px;
+  min-height: 44px;
+  line-height: 1.5;
+  text-decoration: none;
+  text-align: left;
+}
+.admin-kyc-page .kyc-approval-banner > button:hover { background: #40341e; }
+.admin-kyc-page .kyc-workspace { align-items: start; gap: 20px; }
+.admin-kyc-page .kyc-workspace > *,
+.admin-kyc-page .kyc-workspace form,
+.admin-kyc-page .kyc-workspace section,
+.admin-kyc-page .kyc-workspace section > div > div { min-width: 0; }
+.admin-kyc-page .kyc-workspace .glass-panel { border: 1px solid var(--line); }
+.admin-kyc-page .kyc-workspace h2 { color: var(--ink); line-height: 1.5; }
+.admin-kyc-page .kyc-workspace label { color: var(--ink); line-height: 1.6; }
+.admin-kyc-page .kyc-field-value {
+  min-height: 46px;
+  color: var(--ink);
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.admin-kyc-page .kyc-workspace :is(.text-gray-600, .text-gray-500, .text-gray-400) {
+  color: var(--muted);
+  line-height: 1.65;
+}
+.admin-kyc-page .kyc-section-navigation a {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  color: var(--ink);
+  padding: 10px 12px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.admin-kyc-page .kyc-section-navigation a:hover {
+  background: var(--gold-soft);
+  color: var(--gold);
+}
+.admin-kyc-page #kyc-history li { border-color: var(--gold); overflow-wrap: anywhere; }
+.admin-kyc-page #kyc-uploads .border { border-color: var(--line); }
+.admin-kyc-page :is(button, a, select, textarea):focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+.admin-kyc-page .btn-secondary:disabled,
+.admin-kyc-page .btn-primary:disabled { opacity: .6; }
+:root[data-theme=dark] .admin-kyc-page .kyc-workspace .text-red-600 { color: #ffb4a9; }
+.admin-kyc-error { color: #ffccc1; background: #321f1b; border: 1px solid #855242; }
+@media (min-width: 1024px) {
+  .sidebar-brand .admin-sidebar-logo { max-width: 100%; }
+  .admin-kyc-page .kyc-workspace { grid-template-columns: 200px minmax(0, 1fr); }
+  .admin-kyc-page .kyc-workspace > .glass-panel {
+    max-height: calc(100dvh - 100px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+}
+@media (max-width: 639px) {
+  .admin-kyc-page .kyc-page-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+  .admin-kyc-page .kyc-page-actions > button:first-child { grid-column: 1 / -1; }
+  .admin-kyc-page .kyc-page-actions > details { grid-column: 1 / -1; }
+  .admin-kyc-page .kyc-page-actions > :is(button, details) { min-width: 0; }
+  .admin-kyc-page .kyc-page-actions button { white-space: normal; }
+  .admin-kyc-page :is(.kyc-approval-banner, .kyc-review-banner) { padding: 14px; font-size: 13px; }
+  .admin-kyc-page .kyc-approval-banner > button { width: 100%; }
+  .admin-kyc-page .kyc-workspace { gap: 16px; }
+  .admin-kyc-page .kyc-workspace section.glass-panel { padding: 18px 14px; }
+}

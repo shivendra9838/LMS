@@ -1,0 +1,15 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import React from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+import {MemoryRouter} from 'react-router-dom';
+import {createServer} from 'vite';
+let vite,Bottom;
+test.before(async()=>{vite=await createServer({cacheDir:'node_modules/.vite-tests/admin-navigation',optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true,hmr:false,ws:false},appType:'custom'});Bottom=(await vite.ssrLoadModule('/src/layouts/PortalBottomNavigation.jsx')).default;});
+test.after(async()=>vite?.close());
+const Icon=()=>React.createElement('svg',{'aria-hidden':true});
+const items=[['dashboard','Dashboard'],['customers','Customers'],['collections','Collections & Installments'],['reconciliation','Daily Reconciliation'],['settings','Settings']].map(([path,label])=>[path,label,Icon]);
+const render=(path,extra={})=>renderToStaticMarkup(React.createElement(MemoryRouter,{initialEntries:[path]},React.createElement(Bottom,{base:'/admin',role:'ADMIN',items,...extra})));
+test('one bottom bar keeps five destinations in a stable order with compact visual labels',()=>{const html=render('/admin/dashboard');assert.equal((html.match(/<nav /g)||[]).length,1);assert.equal((html.match(/<a /g)||[]).length,5);let last=-1;for(const [path] of items){const index=html.indexOf('href="/admin/'+path+'"');assert.ok(index>last);last=index;}assert.match(html,/aria-label="Collections &amp; Installments"/);assert.match(html,/>Collections</);assert.match(html,/>Settlement</);});
+test('active navigation follows nested customer routes, settlement and Settings query changes',()=>{for(const [path,label]of [['/admin/customers/requests','Customers'],['/admin/reconciliation','Daily Reconciliation'],['/admin/settings?section=security','Settings']]){const html=render(path);assert.equal((html.match(/aria-current="page"/g)||[]).length,1);const active=html.match(/<a[^>]*aria-current="page"[^>]*>/)?.[0];assert.ok(active.includes('aria-label="'+label+'"'));}});
+test('non-bottom destinations never highlight Dashboard incorrectly; keyboard hiding remains shared',()=>{for(const path of ['/admin/notifications','/admin/follow-ups','/admin/employees'])assert.doesNotMatch(render(path),/aria-current="page"/);assert.match(render('/admin/settings',{keyboard:true}),/keyboard-open/);});

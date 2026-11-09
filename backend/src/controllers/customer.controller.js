@@ -52,7 +52,7 @@ const getCustomerController = async (req, res, next) => {
     const customer = await getCustomerByIdService(req.params.id, req.user);
     res.status(200).json({
       success: true,
-      data: customer
+      data: {...customer.toJSON(),financialSummary:await require('../services/customerOverview.service').summary(customer)}
     });
   } catch (error) {
     if (error.name === 'CastError' || error.message === 'Customer Not Found') {

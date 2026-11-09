@@ -5,6 +5,7 @@ const { generateCustomerCode } = require('../utils/generateCode');
 const Employee = require('../models/Employee'); // We need this to resolve employee code to ID
 
 const createCustomerService = async (customerData, createdBy, role) => {
+  customerData = Object.fromEntries(['name','fatherName','mobile','alternateMobile','age','gender','occupation','address','city','area','landmark','idProofType','idProofNumber','photo','employeeId'].filter(key => customerData[key] !== undefined).map(key => [key, customerData[key]]));
   // Mobile unique check
   const existing = await findByMobile(customerData.mobile);
   if (existing) {
@@ -15,7 +16,13 @@ const createCustomerService = async (customerData, createdBy, role) => {
 
   // Generate code
   const customerCode = await generateCustomerCode();
-  const assignedEmployeeId = role === 'EMPLOYEE' ? createdBy : (customerData.employeeId || createdBy);
+  const assignedEmployeeId = customerData.employeeId;
+  if (!assignedEmployeeId) {
+    const error = new Error('Employee allocation is required');
+    error.status = 400;
+    throw error;
+  }
+
   const assignedEmployee = await Employee.findById(assignedEmployeeId);
 
   if (!assignedEmployee) {
@@ -44,7 +51,7 @@ const createCustomerService = async (customerData, createdBy, role) => {
     action: 'CUSTOMER_CREATED',
     description: 'Customer profile was created in the system',
     performedBy: createdBy,
-    performerModel: role === 'EMPLOYEE' ? 'Employee' : 'Admin'
+    performerModel: 'Admin'
   });
 
   return createdCustomer;
@@ -104,12 +111,17 @@ const getCustomerListService = async (queryParams, user) => {
 const getCustomerByIdService = async (id, user) => {
   const customer = await getCustomerById(id);
   if (!customer) {
-    throw new Error('Customer Not Found');
+    const error = new Error('Customer Not Found');
+    error.status = 404;
+    throw error;
   }
 
   // RBAC
-  if (user.role === 'EMPLOYEE' && customer.employeeId._id.toString() !== user.id) {
-    throw new Error('Customer Not Found'); // Disguise 403 as 404 for security
+  const employeeId = customer.employeeId?._id?.toString() || customer.employeeId?.toString();
+  if (user.role === 'EMPLOYEE' && employeeId !== user.id) {
+    const error = new Error('Customer Not Found'); // Disguise 403 as 404 for security
+    error.status = 404;
+    throw error;
   }
 
   return customer;
@@ -117,6 +129,12 @@ const getCustomerByIdService = async (id, user) => {
 
 const updateCustomerService = async (id, updateData, user) => {
   const customer = await getCustomerByIdService(id, user); // Checks existence and RBAC
+
+  if (customer.kycLeadId) {
+    throw Object.assign(new Error('This customer has reviewed KYC. Submit a KYC revision for admin approval to change their profile.'), { status: 409 });
+  }
+
+  updateData = Object.fromEntries(['name','fatherName','mobile','alternateMobile','age','gender','occupation','address','landmark','idProofType','idProofNumber','photo'].filter(key => updateData[key] !== undefined).map(key => [key, updateData[key]]));
 
   // Filter out non-editable fields
   delete updateData.customerCode;

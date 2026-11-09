@@ -43,5 +43,7 @@ const auditLogSchema = new mongoose.Schema({
 
 auditLogSchema.index({ createdAt: -1 });
 auditLogSchema.index({ userId: 1, createdAt: -1 });
+auditLogSchema.index({ module: 1, referenceId: 1, createdAt: 1 });
+auditLogSchema.index({referenceId:1,createdAt:-1},{name:'portfolio_reference_history'});
 
 module.exports = mongoose.model('AuditLog', auditLogSchema);

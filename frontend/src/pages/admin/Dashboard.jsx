@@ -1,292 +1,71 @@
-import { useState, useEffect } from 'react';
-import api from '../../services/api';
+import LoadingIndicator, {LoadingButton} from "../../components/ui/Loading";
+import CollectionInsights from '../../components/dashboard/CollectionInsights';
+import {useCollectionRefresh,useCollectionRead as useRead} from '../../hooks/useCollectionRefresh';
+import {useEffect,useState} from 'react';
+import {Link} from 'react-router-dom';
+import {Users,UserRound,Wallet,ArrowDownLeft,TriangleAlert,Building2,CalendarDays,Download,SlidersHorizontal,RefreshCw,ArrowUpRight,ChartNoAxesCombined,Target,Hourglass} from 'lucide-react';
+import {AreaChart,Area,BarChart,Bar,XAxis,YAxis,CartesianGrid,Tooltip,ResponsiveContainer} from 'recharts';
 import toast from 'react-hot-toast';
-import {
-  PieChart, Pie, Cell,
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer,
-  BarChart, Bar,
-  AreaChart, Area as RechartsArea
-} from 'recharts';
+import EmployeeDashboardAvatar from '../../components/dashboard/EmployeeDashboardAvatar';
+import api from '../../services/api';
+import {businessDay,businessDate} from '../../utils/businessDate';
+import {DashboardHeading,DashboardPanel,Stat,ReadState,SmallEmpty,Upcoming,RecentSettlements,RecentAudit} from '../../components/dashboard/DashboardKit';
+import {amount,count,dailySeries,reportQuery,initialReportFilters} from '../../components/dashboard/presentation';
+import {receiptPercent} from '../../components/dashboard/employeePresentation';
+import './admin-dashboard.css';
 
-const PIE_COLORS = ['#10B981', '#F59E0B', '#EF4444'];
+const exportTypes=['daily','monthly','outstanding','collections','employees','customers','loans'];
+const emptyFilters={startDate:'',endDate:'',employeeId:'',city:'',area:'',status:'',paymentMode:''};
+export default function Dashboard(){
+  const [draft,setDraft]=useState(()=>initialReportFilters(businessDay())),[filters,setFilters]=useState(draft),[exportType,setExportType]=useState('daily'),[exporting,setExporting]=useState(false),[revision,setRevision]=useCollectionRefresh('ADMIN'),[filterError,setFilterError]=useState(''),[areaOpen,setAreaOpen]=useState(false),[advancedOpen,setAdvancedOpen]=useState(false);
+  const [collectionDate,setCollectionDate]=useState(businessDay());
+  const performanceState=useRead('/dashboard/collection-performance?date='+collectionDate+'&limit=1',revision),performance=performanceState.data?.data||performanceState.data;
+  const statsState=useRead('/dashboard/admin',revision),workState=useRead('/settings/work?brief=true',revision),query=reportQuery(filters);
+  const daily=useRead('/reports/daily?'+query,revision),employees=useRead('/reports/employees?'+query,revision),areas=useRead(areaOpen?'/reports/area?'+query:null,revision);
+  const stats=statsState.data?.data,work=workState.data?.data,trend=dailySeries(daily.data?.data),staff=employees.data?.data||[],areaRows=areas.data?.data||[];
+  const topStaff=[...staff].sort((a,b)=>b.todaysCollection-a.todaysCollection).slice(0,5),largestReceipt=Math.max(0,...topStaff.map(row=>row.todaysCollection));
+  const hasTrend=trend.some(row=>row.collectionAmount>0||row.totalDueAmount>0),hasArea=areaRows.some(row=>row.outstanding>0||row.todaysCollection>0);
+  const update=e=>{const {name,value}=e.target;setDraft(previous=>({...previous,[name]:value}));};
+  const apply=e=>{e.preventDefault();if(draft.startDate&&draft.endDate&&draft.startDate>draft.endDate){setFilterError('End date must be on or after the start date.');return;}setFilterError('');setFilters({...draft});};
+  const download=async()=>{if(exporting)return;setExporting(true);const id=toast.loading('Preparing report…');try{const response=await api.get(`/reports/export/${exportType}?${query}`,{responseType:'blob'}),url=URL.createObjectURL(response.data),link=document.createElement('a');link.href=url;link.download=`${exportType}-report-${businessDay()}.xlsx`;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast.success('Report downloaded',{id});}catch{toast.error('Unable to export the report. Please retry.',{id});}finally{setExporting(false);}};
+  return <div className="dash-page admin-dashboard">
+    <DashboardHeading eyebrow="Royal Enterprises · Management overview" title={<><ChartNoAxesCombined size={26}/>Admin Dashboard</>} description="Current portfolio balances · selected-date receipts · separate settlement custody."><label className="ad-business-date"><span><CalendarDays size={14}/>{new Intl.DateTimeFormat('en-GB',{day:'2-digit',month:'short',year:'numeric',timeZone:'Asia/Kolkata'}).format(new Date(collectionDate+'T12:00:00Z'))} · IST</span><input aria-label="Dashboard business date" type="date" max={businessDay()} value={collectionDate} onChange={e=>{if(e.target.value)setCollectionDate(e.target.value);}}/></label><button className="dash-button" onClick={()=>setRevision(v=>v+1)} aria-label="Refresh dashboard"><RefreshCw size={15}/>Refresh</button></DashboardHeading>
+    <ReadState state={performanceState} retry={()=>setRevision(v=>v+1)}/>
+    <ReadState state={statsState} retry={()=>setRevision(v=>v+1)}/>
+    {stats&&<><div className="dash-kpis">
+      <Stat label="Customers" value={count(stats.totalCustomers)} hint={`${count(stats.activeCustomers)} active`} icon={Users} to="/admin/customers"/>
+      <Stat label="Employees" value={count(stats.totalEmployees)} hint={`${count(stats.activeEmployees)} active`} icon={UserRound} to="/admin/employees"/>
+      <Stat label="Active loans" value={count(stats.activeLoans)} hint={`${count(stats.totalLoans)} total · ${count(stats.completedLoans)} completed`} icon={Wallet} to="/admin/loans"/>
 
-export default function Dashboard() {
-  const [stats, setStats] = useState(null);
-  const [dailyStats, setDailyStats] = useState([]);
-  const [employeeStats, setEmployeeStats] = useState([]);
-  const [areaStats, setAreaStats] = useState([]);
-  const [loading, setLoading] = useState(true);
+      <Stat label="Outstanding balance" value={amount(stats.totalOutstanding)} hint="Current remaining loan balances" icon={Wallet} to="/admin/loans"/>
 
-  // Global Filters
-  const [filters, setFilters] = useState({
-    startDate: '',
-    endDate: '',
-    employeeId: '',
-    city: '',
-    area: '',
-    status: '',
-    paymentMode: ''
-  });
-
-  useEffect(() => {
-    fetchData();
-  }, [filters]);
-
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      const queryParams = new URLSearchParams(
-        Object.entries(filters).filter(([_, v]) => v)
-      ).toString();
-
-      const [statsRes, dailyRes, empRes, areaRes] = await Promise.all([
-        api.get(`/dashboard/admin?${queryParams}`),
-        api.get(`/reports/daily?${queryParams}`),
-        api.get(`/reports/employees?${queryParams}`),
-        api.get(`/reports/area?${queryParams}`)
-      ]);
-      setStats(statsRes.data.data);
-      setDailyStats(dailyRes.data.data || []);
-      setEmployeeStats(empRes.data.data || []);
-      setAreaStats(areaRes.data.data || []);
-    } catch (error) {
-      toast.error('Failed to load dashboard data');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleFilterChange = (e) => {
-    setFilters({ ...filters, [e.target.name]: e.target.value });
-  };
-
-  const handleExport = async (type) => {
-    try {
-      const toastId = toast.loading(`Exporting ${type} report...`);
-      const queryParams = new URLSearchParams(
-        Object.entries(filters).filter(([_, v]) => v)
-      ).toString();
-      
-      const response = await api.get(`/reports/export/${type}?${queryParams}`, {
-        responseType: 'blob',
-      });
-      
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      const dateStr = new Date().toISOString().split('T')[0];
-      link.setAttribute('download', `${type}-report-${dateStr}.xlsx`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      
-      toast.success('Export successful', { id: toastId });
-    } catch (error) {
-      toast.error('Export failed');
-    }
-  };
-
-  if (loading && !stats) return <div className="p-8">Loading dashboard...</div>;
-
-  return (
-    <div className="p-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-        
-        {/* Export Buttons */}
-        <div className="flex flex-wrap gap-2">
-          {['daily', 'monthly', 'outstanding', 'collections', 'employees', 'customers', 'loans'].map(type => (
-            <button
-              key={type}
-              onClick={() => handleExport(type)}
-              className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded hover:bg-gray-200 capitalize"
-            >
-              Export {type}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Global Filters */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-8 flex flex-wrap gap-4 items-end">
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">Start Date</label>
-          <input type="date" name="startDate" value={filters.startDate} onChange={handleFilterChange} className="p-2 text-sm border rounded" />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">End Date</label>
-          <input type="date" name="endDate" value={filters.endDate} onChange={handleFilterChange} className="p-2 text-sm border rounded" />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">Employee ID</label>
-          <input type="text" name="employeeId" placeholder="Employee ID" value={filters.employeeId} onChange={handleFilterChange} className="p-2 text-sm border rounded" />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">City</label>
-          <input type="text" name="city" placeholder="All Cities" value={filters.city} onChange={handleFilterChange} className="p-2 text-sm border rounded" />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">Area</label>
-          <input type="text" name="area" placeholder="All Areas" value={filters.area} onChange={handleFilterChange} className="p-2 text-sm border rounded" />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">Status</label>
-          <select name="status" value={filters.status} onChange={handleFilterChange} className="p-2 text-sm border rounded">
-            <option value="">All Statuses</option>
-            <option value="ACTIVE">ACTIVE</option>
-            <option value="COMPLETED">COMPLETED</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">Payment</label>
-          <select name="paymentMode" value={filters.paymentMode} onChange={handleFilterChange} className="p-2 text-sm border rounded">
-            <option value="">All Modes</option>
-            <option value="CASH">CASH</option>
-            <option value="UPI">UPI</option>
-            <option value="BANK_TRANSFER">BANK TRANSFER</option>
-          </select>
-        </div>
-        <div>
-          <button onClick={() => setFilters({ startDate: '', endDate: '', employeeId: '', city: '', area: '', status: '', paymentMode: '' })} className="px-4 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded hover:bg-indigo-100">
-            Clear Filters
-          </button>
-        </div>
-      </div>
-
-      {stats && (
-        <>
-          {/* Entity Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
-              <p className="text-xs font-medium text-gray-500 uppercase">Total / Active Employees</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalEmployees} <span className="text-sm font-normal text-emerald-600">({stats.activeEmployees} active)</span></p>
-            </div>
-            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
-              <p className="text-xs font-medium text-gray-500 uppercase">Total / Active Customers</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalCustomers} <span className="text-sm font-normal text-emerald-600">({stats.activeCustomers} active)</span></p>
-            </div>
-            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
-              <p className="text-xs font-medium text-gray-500 uppercase">Total / Active Loans</p>
-              <p className="text-2xl font-bold text-indigo-600 mt-1">{stats.totalLoans} <span className="text-sm font-normal text-indigo-400">({stats.activeLoans} active)</span></p>
-            </div>
-            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
-              <p className="text-xs font-medium text-gray-500 uppercase">Completed Loans</p>
-              <p className="text-2xl font-bold text-blue-600 mt-1">{stats.completedLoans}</p>
-            </div>
-          </div>
-
-          {/* Financial Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="bg-gradient-to-br from-indigo-500 to-indigo-700 p-6 rounded-xl shadow-md text-white">
-              <p className="text-indigo-100 text-sm font-medium uppercase tracking-wide">Total Outstanding</p>
-              <p className="text-4xl font-bold mt-2">₹{(stats.totalOutstanding || 0).toLocaleString()}</p>
-            </div>
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-              <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">Monthly Revenue</p>
-              <p className="text-3xl font-bold text-emerald-600 mt-2">₹{(stats.monthlyRevenue || 0).toLocaleString()}</p>
-            </div>
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-              <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">Collection Efficiency</p>
-              <p className="text-3xl font-bold text-blue-600 mt-2">{(stats.collectionEfficiency || 0).toFixed(1)}%</p>
-            </div>
-          </div>
-
-          {/* Today's Stats */}
-          <h2 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Today's Pulse</h2>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
-              <p className="text-xs font-medium text-gray-500 uppercase">Revenue</p>
-              <p className="text-2xl font-bold text-emerald-600 mt-1">₹{(stats.todaysRevenue || 0).toLocaleString()}</p>
-            </div>
-            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
-              <p className="text-xs font-medium text-gray-500 uppercase">Avg Collection</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">₹{Math.round(stats.averageCollection || 0).toLocaleString()}</p>
-            </div>
-            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
-              <p className="text-xs font-medium text-gray-500 uppercase">Collected</p>
-              <p className="text-2xl font-bold text-blue-600 mt-1">{stats.todaysCollection || 0}</p>
-            </div>
-            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
-              <p className="text-xs font-medium text-gray-500 uppercase">Pending</p>
-              <p className="text-2xl font-bold text-orange-500 mt-1">{stats.todaysPending || 0}</p>
-            </div>
-            <div className="bg-red-50 p-5 rounded-xl shadow-sm border border-red-100">
-              <p className="text-xs font-medium text-red-600 uppercase">Missed</p>
-              <p className="text-2xl font-bold text-red-700 mt-1">{stats.todaysMissed || 0}</p>
-            </div>
-          </div>
-
-          {/* Analytics Charts */}
-          <h2 className="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Analytics</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <h3 className="text-sm font-medium text-gray-600 mb-4">Schedule Status</h3>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={[{ name: 'Paid', value: stats.todaysCollection || 0 }, { name: 'Pending', value: stats.todaysPending || 0 }, { name: 'Missed', value: stats.todaysMissed || 0 }]} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                      {PIE_COLORS.map((color, i) => <Cell key={`cell-${i}`} fill={color} />)}
-                    </Pie>
-                    <RechartsTooltip />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <h3 className="text-sm font-medium text-gray-600 mb-4">Daily Collections Trend</h3>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={dailyStats}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                    <XAxis dataKey="_id" tick={{fontSize: 12}} />
-                    <YAxis tick={{fontSize: 12}} />
-                    <RechartsTooltip />
-                    <Legend />
-                    <Line type="monotone" dataKey="collectionAmount" name="Collection (₹)" stroke="#4f46e5" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <h3 className="text-sm font-medium text-gray-600 mb-4">Employee Performance (Efficiency %)</h3>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={employeeStats}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                    <XAxis dataKey="name" tick={{fontSize: 12}} />
-                    <YAxis tick={{fontSize: 12}} />
-                    <RechartsTooltip />
-                    <Legend />
-                    <Bar dataKey="collectionEfficiency" name="Efficiency (%)" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <h3 className="text-sm font-medium text-gray-600 mb-4">Area-wise Outstanding & Collection</h3>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={areaStats}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                    <XAxis dataKey="area" tick={{fontSize: 12}} />
-                    <YAxis tick={{fontSize: 12}} />
-                    <RechartsTooltip />
-                    <Legend />
-                    <RechartsArea type="monotone" dataKey="outstanding" name="Outstanding" stackId="1" stroke="#818cf8" fill="#c7d2fe" />
-                    <RechartsArea type="monotone" dataKey="todaysCollection" name="Today's Collection" stackId="2" stroke="#34d399" fill="#a7f3d0" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-            
-          </div>
-        </>
-      )}
+      <Stat label="Overdue receivables" value={amount(stats.overdueAmount)} hint={`${count(stats.overdueInstallments)} overdue installments`} icon={TriangleAlert} tone="attention" to="/admin/collections?scope=OVERDUE"/>
+      <Stat label="Collection target · opening" value={amount(performance?.openingCollectible)} hint="Overdue + due; before selected-date receipts" icon={Target} to="/admin/collections"/>
+      <Stat label="Actual collections received" value={amount(performance?.collected)} hint={businessDate(collectionDate)+' · receipt dates'} icon={ArrowDownLeft} tone="success" to="/admin/collections"/>
+      <Stat label="Remaining collectible" value={amount(performance?.collectibleBalanceKnown===false?null:performance?.remainingCollectible)} hint="Unpaid overdue + current dues as of date" icon={Hourglass} to="/admin/collections"/>
+      <Stat label="Pending settlements" value={count(work?.pendingSettlements)} hint={workState.error?'Unavailable · refresh to retry':'Submitted, awaiting Admin review'} icon={Building2} to="/admin/reconciliation"/>
+    </div>{stats.overdueAmount>0&&<div className="dash-alert"><span><strong>{amount(stats.overdueAmount)}</strong> remains recoverable, including loans past maturity.</span><Link to="/admin/notifications">Review overdue collections</Link></div>}</>}
+    <section className="dash-panel dash-report-tools" aria-label="Report filters and exports">
+      <div className="dash-controls"><details className="dash-report-filter"><summary><SlidersHorizontal size={15}/>Filter analytics <span className="dash-note">{filters.startDate?businessDate(filters.startDate):'All dates'} — {filters.endDate?businessDate(filters.endDate):'All dates'}</span></summary><form className="dash-filter-form" onSubmit={apply}><div className="dash-filter-row"><label>From date<input type="date" name="startDate" value={draft.startDate} onChange={update}/></label><label>Through date<input type="date" name="endDate" value={draft.endDate} onChange={update}/></label><button className="dash-action" type="submit">Apply filters</button><button type="button" className="dash-button" onClick={()=>{setDraft(emptyFilters);setFilters(emptyFilters);setFilterError('');}}>Clear filters</button></div><details onToggle={e=>setAdvancedOpen(e.currentTarget.open)}><summary><SlidersHorizontal size={14}/>More filters</summary><div className="dash-advanced">{advancedOpen&&<EmployeeReportFilter value={draft.employeeId} onChange={id=>setDraft(previous=>({...previous,employeeId:id}))}/>}<label>City<input name="city" value={draft.city} onChange={update} maxLength={100} placeholder="All cities"/></label><label>Area<input name="area" value={draft.area} onChange={update} maxLength={100} placeholder="All areas"/></label><label>Loan status<select name="status" value={draft.status} onChange={update}><option value="">All statuses</option>{['ACTIVE','OVERDUE','DEFAULTED','COMPLETED','CLOSED','CANCELLED'].map(status=><option key={status}>{status}</option>)}</select></label><label>Payment method<select name="paymentMode" value={draft.paymentMode} onChange={update}><option value="">All methods</option>{['CASH','UPI','BANK_TRANSFER','CHEQUE'].map(mode=><option key={mode}>{mode}</option>)}</select></label></div></details>{filterError&&<p role="alert" className="dash-note">{filterError}</p>}<p className="dash-note mt-3">Applied period: {filters.startDate?businessDate(filters.startDate):'All dates'} — {filters.endDate?businessDate(filters.endDate):'All dates'}. Outstanding balances remain current; receipts use the selected receipt dates. Dates use Asia/Kolkata.</p></form></details><div className="dash-export"><label>Export report<select value={exportType} onChange={e=>setExportType(e.target.value)}>{exportTypes.map(type=><option key={type} value={type}>{type.charAt(0).toUpperCase()+type.slice(1)}</option>)}</select></label><LoadingButton busy={exporting} loadingText="Generating Excel…" className="dash-button" disabled={exporting} onClick={download}><Download size={15}/>{exporting?'Preparing…':'Excel'}</LoadingButton></div></div>
+    </section>
+    <div className="dash-grid">
+      <DashboardPanel title="Collections overview" subtitle="Actual receipts and scheduled installments · latest 31 returned business days">
+        <ReadState state={daily} retry={()=>setRevision(v=>v+1)}/>{daily.data&&(hasTrend?<><div className="dash-chart" role="img" aria-label="Actual collections and scheduled amounts by business date"><ResponsiveContainer width="100%" height="100%" minWidth={0}><AreaChart data={trend} margin={{top:10,right:8,bottom:0,left:0}}><defs><linearGradient id="dashboardGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#c3a155" stopOpacity={.3}/><stop offset="100%" stopColor="#c3a155" stopOpacity={0}/></linearGradient></defs><CartesianGrid vertical={false} stroke="#293c45" strokeDasharray="3 4"/><XAxis dataKey="date" tickFormatter={day=>day.slice(8)+'/'+day.slice(5,7)} tick={{fontSize:10}} axisLine={false} tickLine={false} minTickGap={30}/><YAxis width={50} tick={{fontSize:10}} axisLine={false} tickLine={false}/><Tooltip labelFormatter={day=>businessDate(day)} formatter={(value,name)=>[amount(value),name]} contentStyle={{fontSize:11,borderRadius:10,background:'#0b1b24',borderColor:'#40535c',color:'#fff'}}/><Area type="linear" dataKey="totalDueAmount" name="Scheduled installments" stroke="#1c9df0" fill="transparent" strokeWidth={2}/><Area type="linear" dataKey="collectionAmount" name="Actual receipts" stroke="#efbf51" fill="url(#dashboardGold)" strokeWidth={2.5} dot={trend.length===1}/></AreaChart></ResponsiveContainer></div><p className="dash-note">Gold: actual receipts · Blue: scheduled installments. Advance and late receipts can differ from the due-day amount.</p></>:<SmallEmpty title="No collections or scheduled dues in this period" description="Choose another date range to view existing activity."/>)}</DashboardPanel>
+      <DashboardPanel mobileCollapse title="Employee performance" subtitle="Receipt totals in the applied period · highest five" action={<Link className="dash-text-link" to="/admin/employees">Employees <ArrowUpRight size={14}/></Link>}><ReadState state={employees} retry={()=>setRevision(v=>v+1)}/>{employees.data&&(staff.length?<><div>{topStaff.map(employee=><div className="dash-performer" key={employee.employeeCode}><div><Link to={'/admin/employees/'+employee._id} className="ad-performer-name"><EmployeeDashboardAvatar employee={employee}/><strong>{employee.name}</strong></Link><strong>{amount(employee.todaysCollection)}</strong></div><small>{employee.employeeCode} · Outstanding {amount(employee.outstanding)}</small><div className="dash-progress" aria-hidden="true"><span style={{width:largestReceipt?`${employee.todaysCollection/largestReceipt*100}%`:'0%'}}/></div></div>)}</div><p className="dash-note">Bars compare receipts to the highest receipt total in this view; they are not target completion rates.</p><details className="dash-details"><summary>All employee report details</summary><div className="dash-detail-table"><table><thead><tr>{['Employee','Customers','Active loans','Receipts','Outstanding','Overdue','Reported ratio'].map(label=><th key={label}>{label}</th>)}</tr></thead><tbody>{staff.map(employee=><tr key={employee.employeeCode}><td>{employee.name}</td><td>{count(employee.customers)}</td><td>{count(employee.loans)}</td><td>{amount(employee.todaysCollection)}</td><td>{amount(employee.outstanding)}</td><td>{amount(employee.overdue)}</td><td>{Number(employee.collectionEfficiency||0).toFixed(1)}%</td></tr>)}</tbody></table></div><p className="dash-note">Reported ratio = receipts ÷ scheduled dues. The existing API returns zero when there are no scheduled dues; advance receipts may exceed 100%.</p></details></>:<SmallEmpty title="No matching employees" description="Clear the employee filter to see the team."/>)}</DashboardPanel>
     </div>
-  );
+
+    <DashboardPanel mobileCollapse title="Daily collection target & payments" subtitle="Opening target, actual receipts and unpaid balances · selected business date">
+      <AdminCollectionSummary data={performance}/>
+      <CollectionInsights admin compact selectedDate={collectionDate} onDateChange={setCollectionDate} summaryData={performance} revision={revision} onRefresh={()=>setRevision(n=>n+1)}/>
+    </DashboardPanel>
+    {stats&&<DashboardPanel mobileCollapse title="Today’s operational detail" subtitle="Current IST day · open-loan counts; partial payments may remain unpaid"><div className="dash-schedule-counts"><div><strong>{count(stats.todaysPaid)}</strong><small>Today’s open-loan installments with a payment</small></div><div><strong>{count(stats.todaysDue)}</strong><small>Today’s installments still unpaid</small></div><div><strong>{count(stats.todaysMissed)}</strong><small>Today’s installments flagged missed</small></div></div><p className="dash-note mt-3">Month-to-date receipts: {amount(stats.monthlyRevenue)} · Average positive receipt today: {amount(stats.averageCollection)} · Today’s pending, not flagged missed: {count(stats.todaysPending)}. Reported receipt / due ratio: {Number(stats.collectionEfficiency||0).toFixed(1)}% (zero also means no scheduled dues).</p><div className="dash-quick-links mt-3"><Link className="dash-button" to="/admin/customers/requests">Customer approvals</Link><Link className="dash-button" to="/admin/settings?section=requests">Employee account requests</Link><Link className="dash-button" to="/admin/follow-ups">Overdue follow-ups</Link><Link className="dash-button" to="/admin/settings?section=audit">Security & financial audit</Link></div></DashboardPanel>}
+    <div className="dash-grid dash-equal"><Upcoming admin revision={revision}/><RecentSettlements admin rows={work?.recentSettlements} loading={workState.loading} error={workState.error}/></div>
+    <details className="dash-panel ad-secondary"><summary>Recent activity & financial audit</summary><RecentAudit revision={revision}/></details>
+    <DashboardPanel title="Area portfolio" subtitle="Current outstanding and receipts in the applied period"><details className="dash-details" open={areaOpen} onToggle={e=>setAreaOpen(e.currentTarget.open)}><summary>Show area analytics</summary>{areaOpen&&<><ReadState state={areas} retry={()=>setRevision(v=>v+1)}/>{areas.data&&(hasArea?<div className="dash-chart" role="img" aria-label="Outstanding and actual collection amounts by area"><ResponsiveContainer width="100%" height="100%" minWidth={0}><BarChart data={areaRows} margin={{top:10,right:8,left:0,bottom:0}}><CartesianGrid vertical={false} stroke="#293c45"/><XAxis dataKey="area" tick={{fontSize:10}} minTickGap={25}/><YAxis width={50} tick={{fontSize:10}}/><Tooltip formatter={(value,name)=>[amount(value),name]} contentStyle={{fontSize:11,borderRadius:10,background:'#0b1b24',borderColor:'#40535c',color:'#fff'}}/><Bar dataKey="outstanding" name="Outstanding" fill="#d4c28e" radius={[3,3,0,0]}/><Bar dataKey="todaysCollection" name="Receipts in period" fill="#8d997d" radius={[3,3,0,0]}/></BarChart></ResponsiveContainer></div>:<SmallEmpty title="No outstanding or receipt amounts in this view"/>)}</>}</details></DashboardPanel>
+    <p className="dash-note">All figures come from existing LMS APIs. Payments reduce loan balances; settlement verification moves custody and is not additional collection revenue.</p>
+  </div>;
 }
+
+function EmployeeReportFilter({value,onChange}){const [search,setSearch]=useState(''),[term,setTerm]=useState('');useEffect(()=>{const timer=setTimeout(()=>setTerm(search),350);return()=>clearTimeout(timer);},[search]);const state=useRead('/employees?limit=50&search='+encodeURIComponent(term)),rows=state.data?.data||[];return <div className="dash-employee-filter"><label>Find employee<input type="search" value={search} onChange={e=>setSearch(e.target.value)} maxLength={100} placeholder="Start of name or code"/></label><label>Employee<select value={value} onChange={e=>onChange(e.target.value)}><option value="">All employees</option>{value&&!rows.some(row=>row._id===value)&&<option value={value}>Selected employee</option>}{rows.map(row=><option key={row._id} value={row._id}>{row.name} ({row.employeeCode}{row.status==='INACTIVE'?' · Inactive':''})</option>)}</select></label>{state.loading&&<LoadingIndicator message={"Loading employees…"} className="dash-note"/>}{state.error&&<small role="alert" className="dash-note">{state.error}</small>}{state.data?.meta?.total>50&&<small className="dash-note">First 50 matches. Refine the search for more employees.</small>}</div>;}
+
+export function AdminCollectionSummary({data}){const percent=receiptPercent(data?.collected??0,data?.openingCollectible);return <div className="ad-collection-basis"><p className="dash-note">Actual receipts / opening target: {percent==null?'N/A':percent+'%'}{percent>100?' · Includes receipts beyond the opening target':''}</p>{percent!=null&&<div className="dash-progress" role="progressbar" aria-label="Actual receipts compared with opening target" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100,Math.max(0,percent))} aria-valuetext={percent+'%'}><span style={{width:Math.min(100,Math.max(0,percent))+'%'}}/></div>}<p className="dash-note">Opening target: {amount(data?.openingCollectible)} · Actual receipts: {amount(data?.collected)} · Current collectible target / remaining: {amount(data?.collectibleBalanceKnown===false?null:data?.remainingCollectible)}.</p><p className="dash-note">Scheduled due-date coverage: {data?.collectionPercent==null?'N/A':data.collectionPercent+'%'}. This includes advance allocations; receipts may cover overdue or future installments.</p><details className="dash-details"><summary>How these amounts are defined</summary><p className="dash-note">Opening target includes overdue and due installments before receipts on this date. Current collectible target and remaining both mean still-unpaid overdue plus due installments, so they are the same snapshot. The target KPI uses the existing opening-target projection to keep it distinct from remaining. Unknown historical allocations are unavailable (—), never estimated. Portfolio and operational figures use the current IST day; report filters affect charts and exports only.</p></details></div>;}

@@ -1,120 +1,35 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { UserPlus } from 'lucide-react';
-import toast from 'react-hot-toast';
+import LoadingIndicator, {LoadingButton} from "../../components/ui/Loading";
+import {useState} from 'react';
+import {Link} from 'react-router-dom';
+import {UserRoundPlus,UsersRound,CheckCircle2,Clock3,PauseCircle,ChartNoAxesColumn,FileText,Download,Search,Funnel,X,RefreshCw} from 'lucide-react';
 import api from '../../services/api';
-
-import CustomerTable from '../../components/CustomerTable';
-import Pagination from '../../components/Pagination';
-import SearchBar from '../../components/SearchBar';
-import FilterBar from '../../components/FilterBar';
-
-const CustomerList = () => {
-  const navigate = useNavigate();
-  const [customers, setCustomers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [search, setSearch] = useState('');
-  const [searchInput, setSearchInput] = useState('');
-  
-  const [showFilters, setShowFilters] = useState(false);
-  const [filters, setFilters] = useState({
-    status: '',
-    city: '',
-    area: '',
-    employee: ''
-  });
-
-  const fetchCustomers = async () => {
-    try {
-      setLoading(true);
-      let query = `/customers?page=${page}&limit=10`;
-      if (search) query += `&search=${search}`;
-      if (filters.status) query += `&status=${filters.status}`;
-      if (filters.city) query += `&city=${filters.city}`;
-      if (filters.area) query += `&area=${filters.area}`;
-
-      const res = await api.get(query);
-      setCustomers(res.data.data);
-      setTotalPages(res.data.meta.totalPages);
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to fetch customers');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchCustomers();
-  }, [page, search, filters]);
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    setSearch(searchInput);
-    setPage(1); 
-  };
-
-  const handleFilterChange = (e) => {
-    setFilters({ ...filters, [e.target.name]: e.target.value });
-    setPage(1);
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">My Customers</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage your customer portfolio and timelines</p>
-        </div>
-        <button 
-          onClick={() => navigate('/employee/customers/add')}
-          className="btn-primary"
-        >
-          <UserPlus size={18} />
-          Add Customer
-        </button>
-      </div>
-
-      <div className="glass-panel">
-        <SearchBar 
-          searchInput={searchInput} 
-          setSearchInput={setSearchInput} 
-          handleSearch={handleSearch} 
-          showFilters={showFilters} 
-          setShowFilters={setShowFilters} 
-        />
-        
-        {showFilters && (
-          <FilterBar 
-            filters={filters} 
-            handleFilterChange={handleFilterChange} 
-            isAdmin={false} 
-          />
-        )}
-
-        <div className="overflow-x-auto min-h-[400px]">
-          <CustomerTable 
-            customers={customers} 
-            loading={loading} 
-            refresh={fetchCustomers}
-            basePath="/employee/customers"
-          />
-        </div>
-        
-        {totalPages > 1 && (
-          <div className="p-4 border-t border-gray-100 bg-gray-50/30">
-            <Pagination 
-              currentPage={page} 
-              totalPages={totalPages} 
-              onPageChange={setPage} 
-            />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-export default CustomerList;
+import {useFilters} from '../../components/portfolios/PortfolioUi';
+import {useCollectionRead,useCollectionRefresh} from '../../hooks/useCollectionRefresh';
+import {ConfirmDialog} from '../../components/ui/Primitives';
+import {CustomerPortfolioTable,CustomerPortfolioPager} from '../../components/EmployeeCustomerPortfolio';
+import '../../components/employee-customer-portfolio.css';
+const summaryCards=[['ALL','Total Customers',UsersRound,'blue'],['ACTIVE','Active Customers',CheckCircle2,'green'],['AT_RISK','At Risk / Insufficient',Clock3,'amber'],['INACTIVE','Inactive / Closed',PauseCircle,'red']];
+export default function CustomerList(){
+ const {params,search,setSearch,change}=useFilters(),[revision,setRevision]=useCollectionRefresh('EMPLOYEE');
+ const [showFilters,setShowFilters]=useState(false),[exporting,setExporting]=useState(false),[exportError,setExportError]=useState(''),[selected,setSelected]=useState(null),[statusBusy,setStatusBusy]=useState(false),[statusError,setStatusError]=useState('');
+ const query=new URLSearchParams(params);query.set('limit','10');
+ const state=useCollectionRead('/customers/portfolio?'+query.toString(),revision),data=state.data?.data||state.data,filter=params.get('filter')||'ALL';
+ async function exportList(){if(exporting)return;setExporting(true);setExportError('');try{const exportQuery=new URLSearchParams(params);exportQuery.delete('page');exportQuery.delete('limit');const response=await api.get('/customers/portfolio/export',{params:Object.fromEntries(exportQuery),responseType:'blob'});const url=URL.createObjectURL(response.data),anchor=document.createElement('a');anchor.href=url;anchor.download='royal-enterprises-customers.csv';anchor.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(e){let message='Unable to export the authorized customer list. Please retry.';try{if(e.response?.data instanceof Blob)message=JSON.parse(await e.response.data.text()).message||message;else message=e.response?.data?.message||message;}catch{/* Keep the useful generic message when an upstream response is not JSON. */}setExportError(message);}finally{setExporting(false);}}
+ async function toggleStatus(){if(statusBusy||!selected)return;setStatusBusy(true);setStatusError('');try{await api.patch('/customers/'+selected._id+'/status',{status:selected.status==='ACTIVE'?'INACTIVE':'ACTIVE'});setSelected(null);setRevision(n=>n+1);}catch(e){setStatusError(e.response?.data?.message||'Unable to change customer status. Please retry.');}finally{setStatusBusy(false);}}
+ return <div className="pc-page">
+  <header className="pc-heading"><div><h1>My Customers</h1><p>Manage your customer portfolio and timelines</p></div><Link className="pc-button pc-gold" to="/employee/customers/add"><UserRoundPlus size={18}/>Add Customer KYC</Link></header>
+  <div className="pc-summary" aria-label="Customer portfolio summary">{summaryCards.map(([key,label,Icon,tone])=><button key={key} className={'pc-summary-card pc-'+tone} aria-pressed={filter===key} onClick={()=>change('filter',key)}><span className="pc-summary-icon"><Icon size={25}/></span><span><span className="pc-summary-label">{label}</span><strong>{data?data.summary[key].toLocaleString('en-IN'):'—'}</strong><small>{key==='ALL'?'Assigned to you':key==='ACTIVE'?'Customer account status':key==='AT_RISK'?'Review or unrated':'Inactive customer accounts'}</small></span></button>)}</div>
+  <div className="pc-top-actions"><Link className="pc-button" to="/employee/customers/risk"><ChartNoAxesColumn size={19}/>Repayment Risk &amp; Filters</Link><Link className="pc-button" to="/employee/customers/kyc"><FileText size={19}/>View KYC Drafts &amp; Approval Status</Link><LoadingButton busy={exporting} loadingText="Generating Excel…" className="pc-button" disabled={exporting} onClick={exportList}><Download size={19}/>{exporting?'Exporting…':'Export Customer List'}</LoadingButton></div>
+  {exportError&&<p className="pc-message" role="alert">{exportError}</p>}
+  <section className="pc-directory" aria-label="My assigned customers" aria-busy={state.loading}>
+   <div className="pc-search-toolbar"><label className="pc-search"><Search size={20}/><span className="sr-only">Search by name, code, mobile or location</span><input type="search" maxLength={100} value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by name, code, mobile or location..."/>{search&&<button className="pc-icon-action" onClick={()=>{setSearch('');change('search','');}} aria-label="Clear search"><X size={17}/></button>}</label><button className="pc-button pc-filter-toggle" aria-expanded={showFilters} aria-controls="customer-portfolio-filters" onClick={()=>setShowFilters(!showFilters)}><Funnel size={18}/><span>Filters</span></button><button className="pc-icon-action pc-refresh" aria-label="Refresh customers" onClick={()=>setRevision(n=>n+1)}><RefreshCw size={17}/></button></div>
+   {showFilters&&<div className="pc-advanced" id="customer-portfolio-filters"><label>City / village<input maxLength={100} value={params.get('city')||''} onChange={e=>change('city',e.target.value)}/></label><label>Area<input maxLength={100} value={params.get('area')||''} onChange={e=>change('area',e.target.value)}/></label><label>Repayment category<select value={params.get('category')||''} onChange={e=>change('category',e.target.value)}><option value="">All categories</option><option value="GOOD">Good</option><option value="REVIEW_REQUIRED">Review Required</option><option value="HIGH_RISK">High Risk</option><option value="INSUFFICIENT_HISTORY">Insufficient History</option></select></label><p>Insufficient history means not enough repayment evidence. It is not a confirmed bad rating. Inactive refers to the customer account, not a paid-off loan.</p></div>}
+   <div className="pc-list-toolbar"><div className="pc-chips" role="group" aria-label="Customer filter">{[['ALL','All'],['ACTIVE','Active'],['AT_RISK','At Risk'],['INACTIVE','Inactive']].map(([key,label])=><button key={key} aria-pressed={filter===key} onClick={()=>change('filter',key)}><i className={'pc-chip-dot pc-dot-'+key}/>{label} ({data?data.counts[key]:'—'})</button>)}</div><label className="pc-sort">Sort by<select aria-label="Sort customers" value={params.get('sort')||'RECENT'} onChange={e=>change('sort',e.target.value)}>{[['RECENT','Recently Added'],['NAME_ASC','Name A–Z'],['NAME_DESC','Name Z–A'],['CODE','Customer Code'],['OVERDUE','Highest Overdue']].map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></label></div>
+   {state.error&&<div className="pc-message" role="alert">{state.error}<button className="pc-button" onClick={()=>setRevision(n=>n+1)}>Retry</button></div>}
+   {!data&&state.loading&&<LoadingIndicator message={"Loading your authorized customer portfolio…"} className="pc-loading"/>}
+   {data&&<><CustomerPortfolioTable rows={data.rows} busy={statusBusy} onStatus={customer=>{setSelected(customer);setStatusError('');}}/>{!data.rows.length&&<div className="pc-empty"><UsersRound size={29}/><h2>No matching customers</h2><p>Try another search or filter. New approved customers assigned to you appear here.</p></div>}<CustomerPortfolioPager meta={data.meta} onPage={page=>change('page',String(page))}/></>}
+  </section>
+  <p className="pc-footnote">Repayment review and account status are separate. The review count includes High Risk, Review Required and Insufficient History; it can overlap Active or Inactive. Loan counts and CSV loan summaries include only loans assigned to you.</p>
+  {selected&&<ConfirmDialog title={(selected.status==='ACTIVE'?'Deactivate':'Activate')+' customer'} busy={statusBusy} onClose={()=>setSelected(null)} onConfirm={toggleStatus} confirmLabel="Update status"><p>{selected.name} · {selected.customerCode}</p>{statusError&&<p role="alert">{statusError}</p>}</ConfirmDialog>}
+ </div>;
+}

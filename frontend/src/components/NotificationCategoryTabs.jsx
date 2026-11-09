@@ -1,0 +1,2 @@
+export const notificationTabs=[['ALL','All'],['PAYMENTS','Payments'],['LOANS','Loans'],['SYSTEM','System']];
+export default function NotificationCategoryTabs({value='ALL',counts={},onChange}){return <nav className="notification-category-tabs" aria-label="Notification categories">{notificationTabs.map(([key,label])=><button type="button" key={key} aria-pressed={value===key} onClick={()=>onChange?.(key)}>{label}{typeof counts[key]==='number'&&<span> ({counts[key]})</span>}</button>)}</nav>;}

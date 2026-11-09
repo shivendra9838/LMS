@@ -1,143 +1,20 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import LoadingIndicator, {LoadingButton} from "../../components/ui/Loading";
+import {useEffect,useRef,useState} from 'react';
+import {useNavigate,useParams,useLocation} from 'react-router-dom';
+import {notifyChanged} from '../../hooks/useNotifications';
 import api from '../../services/api';
-import toast from 'react-hot-toast';
+import PaymentReceipt from '../../components/receipts/PaymentReceipt';
+import KycPdfPreview,{printPdf} from '../../components/KycPdfPreview';
+import {savePrivateBlob} from '../../components/loans/LoanDocuments';
 
-export default function Receipt() {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const [receipt, setReceipt] = useState(null);
-  const [loading, setLoading] = useState(true);
+export default function Receipt({isAdmin=false}){
+ const {id}=useParams(),navigate=useNavigate(),location=useLocation(),portal=isAdmin?'admin':'employee',printLock=useRef(false);
+ const [pdf,setPdf]=useState(null),[pdfError,setPdfError]=useState('');
+ const [receipt,setReceipt]=useState(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[retry,setRetry]=useState(0),[printing,setPrinting]=useState(false),[verifying,setVerifying]=useState(false),[remarks,setRemarks]=useState('');
+ useEffect(()=>{const controller=new AbortController();setReceipt(null);setLoading(true);setError('');api.get('/collections/receipt/'+id,{signal:controller.signal}).then(r=>setReceipt(r.data.data)).catch(e=>{if(e.code!=='ERR_CANCELED')setError(e.response?.data?.message||'Unable to load this receipt. Please retry.');}).finally(()=>{if(!controller.signal.aborted)setLoading(false);});return()=>controller.abort();},[id,retry,portal,location.state?.notification]);
+ async function verify(){if(verifying)return;setVerifying(true);try{await api.post('/collections/receipt/'+id+'/verify',{remarks});setRetry(n=>n+1);notifyChanged('ADMIN');}catch(e){setError(e.response?.data?.message||'Unable to verify this receipt.');}finally{setVerifying(false);}}
+ useEffect(()=>{if(!receipt){setPdf(null);return;}const controller=new AbortController();let objectUrl;setPdf(null);setPdfError('');api.get('/collections/receipt/'+id+'/pdf',{responseType:'arraybuffer',signal:controller.signal}).then(response=>{if(controller.signal.aborted)return;const bytes=new Uint8Array(response.data);objectUrl=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));setPdf({url:objectUrl,bytes,name:'receipt-'+String(receipt.collectionNumber).replace(/[^a-zA-Z0-9_-]/g,'')+'.pdf'});}).catch(e=>{if(!controller.signal.aborted)setPdfError(e.response?.data?.message||'Unable to prepare the secure receipt PDF. Please retry.');});return()=>{controller.abort();if(objectUrl)URL.revokeObjectURL(objectUrl);};},[receipt,id]);
+ async function print(){if(!receipt||!pdf||printLock.current)return;printLock.current=true;setPrinting(true);setPdfError('');const popup=window.open('','_blank');try{if(!popup)throw Error('Allow pop-ups to print the receipt.');await printPdf(pdf.bytes.slice(),popup,{title:'Royal Enterprises Payment Receipt '+receipt.collectionNumber,pageLabel:'Receipt page',scale:2});}catch(e){popup?.close();setPdfError(e.message||'Unable to prepare receipt printing.');}finally{printLock.current=false;setPrinting(false);}}
 
-  useEffect(() => {
-    fetchReceipt();
-  }, [id]);
-
-  const fetchReceipt = async () => {
-    try {
-      const res = await api.get(`/collections/receipt/${id}`);
-      setReceipt(res.data.data);
-    } catch (error) {
-      toast.error('Failed to load receipt');
-      navigate('/employee/dashboard');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) return <div className="p-8 flex justify-center text-gray-500">Generating receipt...</div>;
-  if (!receipt) return null;
-
-  const handlePrint = () => {
-    window.print();
-  };
-
-  return (
-    <div className="p-8 max-w-3xl mx-auto">
-      <div className="flex justify-between items-center mb-8 print:hidden">
-        <button
-          onClick={() => navigate('/employee/collections/today')}
-          className="text-indigo-600 hover:text-indigo-900 font-medium flex items-center"
-        >
-          ← Back to Collections
-        </button>
-        <button
-          onClick={handlePrint}
-          className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors shadow-sm"
-        >
-          Print Receipt
-        </button>
-      </div>
-
-      <div className="bg-white shadow-lg rounded-xl border border-gray-200 overflow-hidden print:shadow-none print:border-none">
-        {/* Receipt Header */}
-        <div className="bg-indigo-600 p-8 text-center text-white print:bg-gray-100 print:text-black">
-          <h1 className="text-3xl font-bold tracking-wider uppercase mb-2">Payment Receipt</h1>
-          <p className="text-indigo-100 text-sm print:text-gray-600">Microfinance Daily Collection System</p>
-        </div>
-
-        {/* Receipt Body */}
-        <div className="p-8">
-          <div className="flex justify-between items-start border-b border-gray-200 pb-8 mb-8">
-            <div>
-              <p className="text-sm text-gray-500 uppercase tracking-wider mb-1">Receipt Number</p>
-              <p className="text-xl font-bold text-gray-900">{receipt.collectionNumber}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-gray-500 uppercase tracking-wider mb-1">Date</p>
-              <p className="text-lg font-medium text-gray-900">
-                {new Date(receipt.date).toLocaleDateString('en-IN', {
-                  day: '2-digit',
-                  month: 'short',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-8 mb-8">
-            <div>
-              <p className="text-sm text-gray-500 uppercase tracking-wider mb-2">Customer Details</p>
-              <p className="text-lg font-bold text-gray-900">{receipt.customerName}</p>
-              <p className="text-gray-600">ID: {receipt.customerCode}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-gray-500 uppercase tracking-wider mb-2">Loan Details</p>
-              <p className="text-lg font-bold text-gray-900">Loan: {receipt.loanNumber}</p>
-              <p className="text-gray-600">Status: <span className="font-semibold">{receipt.status}</span></p>
-            </div>
-          </div>
-
-          <div className="bg-gray-50 rounded-lg p-6 mb-8 border border-gray-100 flex justify-between items-center">
-            <div>
-              <p className="text-sm text-gray-500 uppercase tracking-wider mb-1">Amount Paid</p>
-              <p className="text-4xl font-bold text-indigo-600">₹{receipt.amount.toLocaleString()}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-gray-500 uppercase tracking-wider mb-1">Payment Mode</p>
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-white border border-gray-200 text-gray-800">
-                {receipt.mode}
-              </span>
-            </div>
-          </div>
-
-          <div className="border-t border-gray-200 pt-8 mt-8 flex justify-between items-end">
-            <div>
-              <p className="text-sm text-gray-500 uppercase tracking-wider mb-1">Collected By</p>
-              <p className="font-medium text-gray-900">{receipt.employeeName}</p>
-              <p className="text-xs text-gray-500">ID: {receipt.employeeCode}</p>
-            </div>
-            <div className="text-center">
-              <div className="w-48 border-b border-gray-400 mb-2"></div>
-              <p className="text-xs text-gray-500">Authorized Signature</p>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <style>{`
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          .print\\:hidden {
-            display: none !important;
-          }
-          .max-w-3xl {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            margin: 0;
-            padding: 0;
-          }
-          .max-w-3xl * {
-            visibility: visible;
-          }
-        }
-      `}</style>
-    </div>
-  );
+ return <div className="receipt-page"><div className="receipt-toolbar"><button className="btn-secondary" onClick={()=>navigate(isAdmin?'/admin/collections':'/employee/collections/today')}>← Back to Collections</button>{receipt?.loanId&&<button className="btn-secondary" onClick={()=>navigate('/'+portal+'/loans/'+receipt.loanId+'?tab=history')}>View payment history</button>}<button className="btn-primary" disabled={!receipt||!pdf||printing} onClick={print}>{printing?'Preparing receipt…':'Print / Save PDF'}</button><button className="btn-secondary" disabled={!receipt||!pdf} onClick={()=>savePrivateBlob(new Blob([pdf.bytes],{type:'application/pdf'}),pdf.name)}>Download Receipt</button></div>{loading&&<LoadingIndicator message={"Loading payment receipt…"}/>}{error&&<div className="settings-note mb-4" role="alert">{error}<button className="btn-secondary ml-3" onClick={()=>setRetry(n=>n+1)}>Retry</button></div>}{receipt&&isAdmin&&<section className="receipt-toolbar flex-wrap" aria-label="Receipt actions">{receipt.customerId&&<button className="btn-secondary" onClick={()=>navigate('/admin/customers/'+receipt.customerId)}>View Customer</button>}{receipt.employeeId&&<button className="btn-secondary" onClick={()=>navigate('/admin/employees/'+receipt.employeeId)}>View Employee</button>}{receipt.loanId&&<button className="btn-secondary" onClick={()=>navigate('/admin/loans/'+receipt.loanId)}>View Loan</button>}{receipt.customerPaymentReview?<p className="text-emerald-600 font-semibold">✓ Verified · {receipt.customerPaymentReview.verifiedBy?.name} · {new Date(receipt.customerPaymentReview.verifiedAt).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})} IST</p>:receipt.canReview&&<details><summary className="btn-secondary cursor-pointer">Review customer payment</summary><label className="block text-sm py-2">Review remarks<textarea maxLength={1000} className="input-field" value={remarks} onChange={e=>setRemarks(e.target.value)}/></label><p className="text-sm py-2">Receipt verification does not confirm company settlement.</p><LoadingButton busy={verifying} loadingText={"Verifying…"} className="btn-primary" disabled={verifying} onClick={verify}>{verifying?'Verifying…':'Verify Payment'}</LoadingButton></details>}</section>}{receipt&&<><section className="receipt-pdf-preview" aria-label="Secure payment receipt PDF">{pdfError?<div role="alert" className="settings-note">{pdfError}<button className="btn-secondary" onClick={()=>setRetry(n=>n+1)}>Retry PDF</button></div>:!pdf?<LoadingIndicator message={"Preparing secure receipt PDF…"}/>:<KycPdfPreview url={pdf.url} downloadName={pdf.name}/>}</section><details className="receipt-details mt-4"><summary className="btn-secondary cursor-pointer">Accessible receipt details</summary><PaymentReceipt receipt={receipt}/></details></>}</div>;
 }

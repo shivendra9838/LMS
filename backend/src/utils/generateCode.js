@@ -16,19 +16,30 @@ const generateCustomerCode = async () => {
   return `CUS${(numericPart + 1).toString().padStart(6, '0')}`;
 };
 
-const generateLoanNumber = async () => {
-  const lastLoan = await Loan.findOne().sort({ loanNumber: -1 });
-  if (!lastLoan || !lastLoan.loanNumber) return 'LN000001';
-  const numericPart = parseInt(lastLoan.loanNumber.replace('LN', ''), 10);
-  return `LN${(numericPart + 1).toString().padStart(6, '0')}`;
+const generateLoanNumber = async (session) => {
+  const Sequence=require('../models/FinanceSequence');
+  if(!await Sequence.findById('loan').session(session||null)) {
+    const result=await Loan.aggregate([{$match:{loanNumber:/^LN\d+$/}},{$project:{value:{$convert:{input:{$substrBytes:['$loanNumber',2,30]},to:'double',onError:0}}}},{$group:{_id:null,value:{$max:'$value'}}}]).session(session||null);
+    await Sequence.updateOne({_id:'loan'},{$setOnInsert:{value:result[0]?.value||0}},{upsert:true,session});
+  }
+  const counter=await Sequence.findOneAndUpdate({_id:'loan'},{$inc:{value:1}},{returnDocument:'after',session});
+  return `LN${String(counter.value).padStart(6,'0')}`;
 };
 
-const generateCollectionNumber = async () => {
+const generateCollectionNumber = async (session) => {
+  const Sequence = require('../models/FinanceSequence');
   const Collection = require('../models/Collection'); // Require here to avoid circular dependencies if any
-  const lastCollection = await Collection.findOne().sort({ collectionNumber: -1 });
-  if (!lastCollection || !lastCollection.collectionNumber) return 'COL000001';
-  const numericPart = parseInt(lastCollection.collectionNumber.replace('COL', ''), 10);
-  return `COL${(numericPart + 1).toString().padStart(6, '0')}`;
+  let counter = await Sequence.findById('collection').session(session || null);
+  if (!counter) {
+    const highest = await Collection.aggregate([
+      { $match: { collectionNumber: /^COL\d+$/ } },
+      { $project: { value: { $convert: { input: { $substrBytes: ['$collectionNumber', 3, 30] }, to: 'double', onError: 0 } } } },
+      { $group: { _id: null, value: { $max: '$value' } } }
+    ]).session(session || null);
+    await Sequence.updateOne({ _id: 'collection' }, { $setOnInsert: { value: highest[0]?.value || 0 } }, { upsert: true, session });
+  }
+  counter = await Sequence.findOneAndUpdate({ _id: 'collection' }, { $inc: { value: 1 } }, { returnDocument: 'after', session });
+  return `COL${String(counter.value).padStart(6, '0')}`;
 };
 
 module.exports = { generateEmployeeCode, generateCustomerCode, generateLoanNumber, generateCollectionNumber };

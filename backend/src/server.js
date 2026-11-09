@@ -6,14 +6,14 @@ const { setupProcessErrorLogging, logAccess, logError } = require('./utils/logge
 
 setupProcessErrorLogging();
 
-connectDB().catch((error) => {
-  logError('DATABASE_CONNECTION_FAILED', error);
-});
-
-// Initialize all background jobs
-initCronJobs();
-
-app.listen(PORT, () => {
-  logAccess('SERVER_RUNNING', { port: PORT });
-  console.log(`Server is running on port ${PORT}`);
-});
+async function start(){
+ await connectDB();
+ const inbox=require('./services/inbox.service');await inbox.initialize();
+ const emailWorker=require('./services/emailWorker.service');await emailWorker.initialize();
+ // Express 5 also calls the listen callback on failure. Start workers only after a real bind.
+ await new Promise((resolve,reject)=>app.listen(PORT,error=>error?reject(error):resolve()));
+ inbox.start();emailWorker.start();
+ initCronJobs();
+ logAccess('SERVER_RUNNING',{port:PORT});console.log(`Server is running on port ${PORT}`);
+}
+start().catch(async error=>{logError('SERVER_START_FAILED',error);await require('mongoose').disconnect();process.exitCode=1;});

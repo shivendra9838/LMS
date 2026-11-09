@@ -94,4 +94,5 @@ const loanSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
+loanSchema.index({customerId:1,status:1},{name:'portfolio_customer_loans'});
 module.exports = mongoose.model('Loan', loanSchema);

@@ -1,0 +1,19 @@
+const mongoose=require('mongoose');
+const fail=()=>{throw Object.assign(new Error('This record is unavailable or is no longer assigned to you. No other record was substituted.'),{status:404});};
+const id=v=>String(v?._id||v);
+const groups={PAYMENTS:/PAYMENT_|Payment (received|recorded|verified)|Customer payment verified|\/collections\/receipt\//i,KYC:/KYC|CUSTOMER_REQUEST|\/customers\/(kyc|requests)/i,LOANS:/LOAN_|\/loans\//i,SETTLEMENTS:/SETTLEMENT|\/(settlements|reconciliation)/i,REMINDERS:/OVERDUE|FOLLOW_UP|due:|follow-up:|\/follow-ups|scope=/i,CUSTOMERS:/CUSTOMER_REASSIGNED/i};
+function category(row){if(row.category)return row.category;const text=[row.kind,row.title,row.path,row.eventKey].join(' ');return Object.keys(groups).find(k=>groups[k].test(text))||'SYSTEM';}
+function filter(value){if(!value||value==='ALL')return null;if(typeof value!=='string'||(!Object.hasOwn(groups,value)&&value!=='SYSTEM'))throw Object.assign(new Error('Choose a valid notification category'),{status:422});if(value==='SYSTEM')return {category:'SYSTEM'};return {$or:[{category:value},...['kind','title','path','eventKey'].map(k=>({[k]:groups[value]}))]};}
+async function resolve(row,user){
+ const base='/'+user.role.toLowerCase(),path=row.path||'';if(!path.startsWith(base+'/'))fail();
+ const event=/^audit:([a-f\d]{24})$/i.exec(row.eventKey||'')?await require('../models/AuditLog').findById(row.eventKey.slice(6)).select('action referenceId').lean():null;
+ const leadId=row.kycRequestId||(/^KYC_|^CUSTOMER_REQUEST_/.test(event?.action||'')?event.referenceId:null)||/\/customers\/kyc\/([a-f\d]{24})/i.exec(path)?.[1];
+ if(leadId){const lead=await require('../models/CustomerLead').findById(leadId).lean();if(!lead)fail();if(lead.kycVersion)await require('./kyc.service').access(id(leadId),user);else await require('./customerLead.service').getCustomerLeadByIdService(id(leadId),user);if(user.role==='EMPLOYEE'&&/APPROVED/i.test(row.kind||event?.action||row.title)&&lead.customerId){const customerId=id(lead.customerId);await require('./customer.service').getCustomerByIdService(customerId,user);return base+'/customers/'+customerId;}return lead.kycVersion?base+'/customers/kyc/'+id(leadId):base+(user.role==='ADMIN'?'/customers/requests':'/inbox')+'?request='+id(leadId);}
+ const settlementId=row.settlementId||/[?&]settlement=([a-f\d]{24})/i.exec(path)?.[1];if(settlementId){await require('./settlement.service').details(id(settlementId),user);return base+(user.role==='ADMIN'?'/reconciliation':'/settlements')+'?settlement='+id(settlementId);}
+ const loanId=row.loanId||/\/loans\/([a-f\d]{24})/i.exec(path)?.[1]||/[?&]loan=([a-f\d]{24})/i.exec(path)?.[1];if(loanId){if(!mongoose.isValidObjectId(loanId))fail();const loan=await require('./loan.service').getLoanByIdService(id(loanId),user);if(path.includes('/collections/today')){const scope=/[?&]scope=(TODAY|UPCOMING|OVERDUE)/.exec(path)?.[1];if(!scope)fail();return base+'/collections/today?scope='+scope+'&loan='+encodeURIComponent(loan.loanNumber);}return path.includes('/follow-ups')?base+'/follow-ups?loan='+id(loanId):base+'/loans/'+id(loanId);}
+ const customerId=row.customerId||/\/customers\/([a-f\d]{24})/i.exec(path)?.[1];if(customerId){await require('./customer.service').getCustomerByIdService(id(customerId),user);return base+'/customers/'+id(customerId);}
+ if(event?.action?.startsWith('ACCOUNT_REQUEST_')){const request=await require('../models/AccountRequest').findById(event.referenceId).lean();if(!request||(user.role==='EMPLOYEE'&&id(request.employeeId)!==user.id))fail();return base+'/settings?section=requests&request='+id(request);}
+ if([base+'/dashboard',base+'/follow-ups'].includes(path)||new RegExp('^'+base+'/collections/today\\?scope=(TODAY|UPCOMING|OVERDUE)$').test(path))return path;
+ fail();
+}
+module.exports={category,filter,resolve,groups};

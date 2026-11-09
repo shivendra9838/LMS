@@ -22,9 +22,12 @@ body {
          transition-all duration-200 outline-none shadow-sm;
 }
 
+/* Keep icon spacing above the component's base padding in Tailwind's layers. */
+.input-field.pl-10 { padding-left: 2.5rem; }
+
 .btn-primary {
-  @apply px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg 
-         shadow-md shadow-blue-500/20 transition-all duration-200 
+  @apply px-4 py-2.5 bg-[#211b10] hover:bg-[#3c2e14] text-white rounded-lg
+         shadow-md shadow-amber-800/20 transition-all duration-200
          active:scale-[0.98] font-medium flex items-center justify-center gap-2;
 }
 
@@ -40,5 +43,52 @@ body {
 
 @keyframes slideUpFade {
   from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Keep content sized by the viewport, while wide data tables scroll locally. */
+html { scroll-padding-top: 5rem; }
+body { margin: 0; min-width: 0; }
+*, *::before, *::after { box-sizing: border-box; }
+button, a, input, select, textarea { touch-action: manipulation; }
+button:not(:disabled), a { -webkit-tap-highlight-color: transparent; }
+button:disabled { cursor: not-allowed; opacity: .6; }
+:focus-visible { outline: 2px solid #977129; outline-offset: 3px; }
+.input-field, input:not([type=checkbox]):not([type=radio]), select, textarea {
+  min-width: 0; max-width: 100%; min-height: 44px;
+}
+.btn-primary, .btn-secondary { min-height: 44px; white-space: normal; }
+.portal-content { width: 100%; min-width: 0; overflow-wrap: anywhere; }
+.portal-content > * { width: 100%; }
+.portal-content .grid > *, .portal-content .flex > * { min-width: 0; }
+.portal-content .overflow-x-auto { max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
+.portal-content table { overflow-wrap: normal; }
+.portal-content .recharts-responsive-container { min-width: 0 !important; }
+.portal-sidebar { height: 100dvh; overflow-y: auto; flex-shrink: 0; }
+.portal-header { padding-top: env(safe-area-inset-top); }
+.payment-dialog { max-height: calc(100dvh - 2rem); overflow-y: auto; overscroll-behavior: contain; }
+.portal-sidebar a, .portal-sidebar button { min-height: 44px; }
+.portal-content input[type=file]:not(.sr-only) { width: 100%; }
+.portal-content input[type=file]:not(.sr-only)::file-selector-button { min-height: 44px; margin-right: .5rem; padding: .5rem; border: 1px solid #d1d5db; border-radius: .5rem; background: #f9fafb; }
+.portal-content input.sr-only { width: 1px; height: 1px; min-height: 0; max-width: 1px; }
+.btn-secondary:has(input:focus-visible) { outline: 2px solid #977129; outline-offset: 3px; }
+.receipt-sheet { overflow-wrap: anywhere; }
+@media (max-width: 639px) {
+  input:not([type=checkbox]):not([type=radio]), select, textarea { font-size: 16px; }
+  .portal-content button, .portal-content a, .portal-header button, .portal-sidebar a,
+  .portal-sidebar button { min-height: 44px; }
+  .portal-content a { align-content: center; }
+  .portal-content button:has(> svg:only-child) { min-width: 44px; }
+  .portal-content .text-4xl { font-size: 1.875rem; }
+  .portal-content .text-3xl { font-size: 1.625rem; }
+  .portal-content .text-2xl { font-size: 1.375rem; }
+  .portal-content .p-6 { padding: 1rem; }
+  .receipt-sheet .text-right { text-align: left; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
+@media print {
+  .portal-sidebar, .portal-header { display: none !important; }
+  .portal-content { padding: 0 !important; overflow: visible !important; }
 }

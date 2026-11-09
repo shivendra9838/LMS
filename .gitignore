@@ -5,3 +5,15 @@ logs/
 backend/logs/
 coverage/
 backend/coverage/
+/tmp/
+.env
+.env.*
+!.env.example
+node_modules/
+dist/
+build/
+coverage/
+uploads/
+output/
+*.log
+temp/

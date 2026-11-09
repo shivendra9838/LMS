@@ -1,136 +1,20 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import LoadingIndicator from "../../components/ui/Loading";
+import {useState,useEffect,useRef} from 'react';
+import {Link,useSearchParams} from 'react-router-dom';
+import {Layers,Plus,Search,Filter,CalendarDays,RotateCcw,ChevronLeft,ChevronRight} from 'lucide-react';
 import api from '../../services/api';
-import toast from 'react-hot-toast';
-import StatusBadge from '../../components/StatusBadge';
-import SearchBar from '../../components/SearchBar';
-import Pagination from '../../components/Pagination';
-
-export default function Loans() {
-  const navigate = useNavigate();
-  const [loans, setLoans] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({
-    page: 1,
-    limit: 10,
-    search: '',
-    status: ''
-  });
-  const [meta, setMeta] = useState({ totalPages: 1 });
-
-  useEffect(() => {
-    fetchLoans();
-  }, [filters]);
-
-  const fetchLoans = async () => {
-    try {
-      const queryParams = new URLSearchParams(filters).toString();
-      const res = await api.get(`/loans?${queryParams}`);
-      setLoans(res.data.data);
-      setMeta(res.data.meta);
-    } catch (error) {
-      toast.error('Failed to load loans');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSearch = (searchTerm) => {
-    setFilters({ ...filters, search: searchTerm, page: 1 });
-  };
-
-  return (
-    <div className="p-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">All Loans</h1>
-      </div>
-
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="p-4 border-b border-gray-200 bg-gray-50 flex flex-col sm:flex-row gap-4 justify-between items-center">
-          <div className="w-full sm:w-1/3">
-            <SearchBar onSearch={handleSearch} placeholder="Search by Loan # or Customer..." />
-          </div>
-          
-          <div className="flex gap-4">
-            <select
-              value={filters.status}
-              onChange={(e) => setFilters({ ...filters, status: e.target.value, page: 1 })}
-              className="border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-4 py-2 border bg-white"
-            >
-              <option value="">All Statuses</option>
-              <option value="ACTIVE">Active</option>
-              <option value="COMPLETED">Completed</option>
-              <option value="CLOSED">Closed</option>
-              <option value="DEFAULTED">Defaulted</option>
-              <option value="CANCELLED">Cancelled</option>
-            </select>
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="p-8 text-center text-gray-500">Loading...</div>
-        ) : loans.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">No loans found matching your criteria.</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Loan Info</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Issued By</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {loans.map((loan) => (
-                  <tr key={loan._id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-indigo-600">{loan.loanNumber}</div>
-                      <div className="text-sm text-gray-500">{new Date(loan.loanDate).toLocaleDateString()}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{loan.customerId?.name}</div>
-                      <div className="text-sm text-gray-500">{loan.customerId?.mobile}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">₹{loan.loanAmount.toLocaleString()}</div>
-                      <div className="text-sm text-gray-500">Total: ₹{loan.totalPayable.toLocaleString()}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{loan.employeeId?.name}</div>
-                      <div className="text-sm text-gray-500">{loan.employeeId?.employeeCode}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <StatusBadge status={loan.status} />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => navigate(`/admin/loans/${loan._id}`)}
-                        className="text-indigo-600 hover:text-indigo-900 font-medium bg-indigo-50 px-3 py-1 rounded-md"
-                      >
-                        View Details
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        
-        {meta.totalPages > 1 && (
-          <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
-            <Pagination 
-              currentPage={filters.page} 
-              totalPages={meta.totalPages} 
-              onPageChange={(page) => setFilters({...filters, page})} 
-            />
-          </div>
-        )}
-      </div>
-    </div>
-  );
+import {AdminLoanResults,AdminLoanState,loanListStatuses} from '../../components/admin-loans/AdminLoanPresentation';
+const defaults=(customer='',employee='')=>({page:1,limit:10,search:'',customer,employee,status:'',issuedFrom:'',issuedTo:''});
+export default function Loans(){
+ const filterRef=useRef(null);
+ useEffect(()=>{const media=window.matchMedia('(min-width:768px)'),update=()=>{if(filterRef.current)filterRef.current.open=media.matches;};update();media.addEventListener('change',update);return()=>media.removeEventListener('change',update);},[]);
+ const [params]=useSearchParams(),customer=params.get('customer')||'',employee=params.get('employee')||'';
+ const [draft,setDraft]=useState(()=>defaults(customer,employee)),[applied,setApplied]=useState(()=>defaults(customer,employee)),[revision,setRevision]=useState(0);
+ const [report,setReport]=useState({loans:[],meta:{total:0,totalPages:0}}),[loading,setLoading]=useState(true),[error,setError]=useState('');
+ const [employees,setEmployees]=useState([]),[employeePage,setEmployeePage]=useState(1),[employeeMore,setEmployeeMore]=useState(false),[employeeLoading,setEmployeeLoading]=useState(false),[employeeError,setEmployeeError]=useState(''),[employeeRevision,setEmployeeRevision]=useState(0);
+ useEffect(()=>{setDraft(defaults(customer,employee));setApplied(defaults(customer,employee));},[customer,employee]);
+ useEffect(()=>{let active=true;const controller=new AbortController();setLoading(true);setError('');api.get('/loans?'+new URLSearchParams(Object.entries(applied).filter(([,value])=>value!=='')),{signal:controller.signal}).then(response=>{if(active)setReport({loans:response.data.data,meta:response.data.meta});}).catch(e=>{if(active)setError(e.response?.data?.message||'Check your connection and try again.');}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;controller.abort();};},[applied,revision]);
+ useEffect(()=>{let active=true;const controller=new AbortController();setEmployeeLoading(true);setEmployeeError('');api.get(`/employees?page=${employeePage}&limit=100`,{signal:controller.signal}).then(response=>{if(!active)return;setEmployees(previous=>employeePage===1?response.data.data:[...previous,...response.data.data.filter(e=>!previous.some(p=>p._id===e._id))]);setEmployeeMore(employeePage<(response.data.meta?.totalPages||1));}).catch(e=>{if(active)setEmployeeError(e.response?.data?.message||'Employee options could not be loaded.');}).finally(()=>{if(active)setEmployeeLoading(false);});return()=>{active=false;controller.abort();};},[employeePage,employeeRevision]);
+ const change=(key,value)=>setDraft(previous=>({...previous,[key]:value})),reset=()=>{const next=defaults();setDraft(next);setApplied(next);},filtered=Object.entries(applied).some(([key,value])=>!['page','limit'].includes(key)&&Boolean(value)),total=report.meta.total||0,pages=Math.max(1,report.meta.totalPages||0),page=applied.page;
+ return <div className="al-page"><header className="al-heading"><div className="al-title"><span><Layers size={26}/></span><div><h1>All Loans</h1><p>View and manage all loan accounts.</p></div></div><Link className="al-button al-primary" to="/admin/customers/all" title="Choose an existing customer, then use Issue Loan from Customer Details"><Plus size={17}/>Issue Loan</Link></header><form className="al-filter-panel" aria-label="Loan search and filters" onSubmit={event=>{event.preventDefault();setApplied({...draft,page:1});}}><label className="al-search"><span className="sr-only">Search loans</span><Search size={18}/><input type="search" placeholder="Search loan number, customer or mobile…" maxLength={100} value={draft.search} onChange={e=>change('search',e.target.value)}/></label><details className="al-advanced" ref={filterRef} open><summary><Filter size={16}/>Filters</summary><div className="al-filter-fields"><label><span>Loan status</span><select value={draft.status} onChange={e=>change('status',e.target.value)}><option value="">All statuses</option>{loanListStatuses.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label><div className="al-employee-field"><label><span>Employee</span><select value={draft.employee} onChange={e=>change('employee',e.target.value)}><option value="">All employees</option>{draft.employee&&!employees.some(e=>e._id===draft.employee)&&<option value={draft.employee}>Selected employee</option>}{employees.map(e=><option key={e._id} value={e._id}>{e.name} ({e.employeeCode})</option>)}</select></label>{employeeLoading&&<LoadingIndicator message={"Loading employees…"}/>}{employeeError&&<div className="al-option-error" role="status"><small>{employeeError}</small><button type="button" onClick={()=>setEmployeeRevision(n=>n+1)}>Retry employee options</button></div>}{employeeMore&&<button className="al-load-more" type="button" disabled={employeeLoading} onClick={()=>setEmployeePage(p=>p+1)}>Load more employees</button>}</div><label><span><CalendarDays size={13}/>Issued from</span><input type="date" value={draft.issuedFrom} onChange={e=>change('issuedFrom',e.target.value)}/></label><label><span><CalendarDays size={13}/>Issued through</span><input type="date" min={draft.issuedFrom||undefined} value={draft.issuedTo} onChange={e=>change('issuedTo',e.target.value)}/></label></div></details><div className="al-filter-actions"><button className="al-button" type="button" onClick={reset}><RotateCcw size={16}/>Reset Filters</button><button className="al-button al-primary" type="submit"><Search size={16}/>Search</button></div>{customer&&applied.customer&&<p className="al-filter-note">Showing the selected customer's loans. Reset Filters returns to all loans.</p>}</form><section className="al-results" aria-label="Loan accounts" aria-busy={loading}>{loading||error||!report.loans.length?<AdminLoanState {...{loading,error,filtered}} onRetry={()=>setRevision(n=>n+1)} onClear={reset}/>:<AdminLoanResults loans={report.loans}/>}<footer className="al-pagination"><p aria-live="polite">{loading?<LoadingIndicator message={"Loading loan accounts…"}/>:error?'Report unavailable':total?`Showing ${(page-1)*applied.limit+1}–${Math.min(page*applied.limit,total)} of ${total} loans`:'0 loans'}</p><div className="al-pager"><button className="al-button" type="button" aria-label="Previous page" disabled={loading||Boolean(error)||page<=1} onClick={()=>setApplied(p=>({...p,page:p.page-1}))}><ChevronLeft size={16}/><span>Previous</span></button><span aria-label={`Page ${page} of ${pages}`}>{page} / {pages}</span><button className="al-button" type="button" aria-label="Next page" disabled={loading||Boolean(error)||page>=pages} onClick={()=>setApplied(p=>({...p,page:p.page+1}))}><span>Next</span><ChevronRight size={16}/></button><label><span className="sr-only">Loans per page</span><select aria-label="Loans per page" value={applied.limit} onChange={e=>{const limit=Number(e.target.value);setDraft(p=>({...p,limit}));setApplied(p=>({...p,limit,page:1}));}}>{[10,20,50,100].map(n=><option key={n} value={n}>{n} / page</option>)}</select></label></div></footer></section></div>;
 }

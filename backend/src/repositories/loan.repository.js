@@ -22,7 +22,7 @@ const getLoans = async (query, skip, limit, sort) => {
 const getLoanById = async (id) => {
   return await Loan.findById(id)
     .populate('customerId', 'name customerCode mobile')
-    .populate('employeeId', 'name employeeCode')
+    .populate('employeeId', 'name employeeCode city branch')
     .lean();
 };
 

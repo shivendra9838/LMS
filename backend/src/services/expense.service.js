@@ -19,14 +19,12 @@ const buildExpenseFilter = (query = {}) => {
   if (from || to) {
     filter.date = {};
     if (from) {
-      const start = new Date(from);
-      start.setHours(0, 0, 0, 0);
+      const start = require('../utils/businessDay').dayStart(String(from).slice(0,10));
       filter.date.$gte = start;
     }
     if (to) {
-      const end = new Date(to);
-      end.setHours(23, 59, 59, 999);
-      filter.date.$lte = end;
+      const end = require('../utils/businessDay').dayStart(require('../utils/businessDay').addDays(String(to).slice(0,10),1));
+      filter.date.$lt = end;
     }
   }
   if (search) {

@@ -1,6 +1,8 @@
 const mongoose = require('mongoose');
 
 const customerSchema = new mongoose.Schema({
+  kycLeadId: { type: mongoose.Schema.Types.ObjectId, ref: 'CustomerLead', index: true },
+  kycApprovedAt: Date,
   customerCode: {
     type: String,
     required: true,
@@ -84,4 +86,7 @@ const customerSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
+customerSchema.index({ mobile: 1 }, { unique: true, partialFilterExpression: { kycLeadId: { $exists: true } }, name: 'unique_kyc_customer_mobile' });
+customerSchema.index({employeeId:1,name:1,_id:1},{collation:{locale:'en',strength:2},name:'portfolio_owner_name'});
+for(const field of ['name','customerCode','mobile'])customerSchema.index({[field]:1,_id:1},{collation:{locale:'en',strength:2},name:`portfolio_search_${field}`});
 module.exports = mongoose.model('Customer', customerSchema);

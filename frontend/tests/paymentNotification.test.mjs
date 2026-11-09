@@ -1,0 +1,11 @@
+import test,{before,after} from 'node:test';
+import assert from 'node:assert/strict';
+import React from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+import {createServer} from 'vite';
+let vite,Card;
+before(async()=>{vite=await createServer({cacheDir:'node_modules/.vite-tests/payment-notification',optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true,hmr:false,ws:false},appType:'custom'});Card=(await vite.ssrLoadModule('/src/components/PaymentNotification.jsx')).default;});
+after(async()=>{await vite?.close();});
+const row={title:'Payment Received — ₹700',kind:'PAYMENT_RECORDED',paymentContext:{employee:{id:'employee-a',name:'Synthetic Employee',code:'EMP-A'},customer:{id:'customer-a',name:'Synthetic Customer',code:'CUS-A'},loan:{number:'LN-A'},installments:[2,3],amount:700,mode:'BANK_TRANSFER',receivedAt:'2026-10-28T00:00:00+05:30',recordedAt:'2026-10-29T06:00:00Z',receipt:'COL-EXACT'}};
+test('payment card uses exact supplied identities, installments, actual date, mode and receipt, with three independent Admin actions',()=>{const html=renderToStaticMarkup(React.createElement(Card,{row,role:'ADMIN',onOpen:()=>{}}));for(const text of ['EMP-A','CUS-A','LN-A','Days 2, 3','Bank Transfer','28 Oct 2026','COL-EXACT','View Employee','View Customer','View Receipt','settlement statuses are separate'])assert.ok(html.includes(text),text);assert.match(html,/29\/10\/2026/);assert.equal((html.match(/<button/g)||[]).length,4);assert.doesNotMatch(html,/verified payment|Funds received by company/);});
+test('Employee card has only the authorized receipt action and missing actor/customer references are not invented',()=>{const html=renderToStaticMarkup(React.createElement(Card,{row:{...row,paymentContext:{...row.paymentContext,employee:null,customer:null}},role:'EMPLOYEE',onOpen:()=>{}}));assert.match(html,/Unavailable/);assert.doesNotMatch(html,/View Employee|View Customer|EMP-A|CUS-A/);assert.match(html,/View Receipt/);});

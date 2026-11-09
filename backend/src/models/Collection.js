@@ -66,12 +66,30 @@ const collectionSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Employee', // or Admin, but usually Employee who collected it
     required: true
-  }
+  },
+  financeVersion: Number,
+  backdateReason: { type: String, maxlength: 1000 },
+  allocations: [{
+    _id: false,
+    scheduleId: { type: mongoose.Schema.Types.ObjectId, ref: 'LoanSchedule', required: true },
+    dueDate: { type: Date, required: true },
+    amount: { type: Number, required: true, min: 0.01 }
+  }],
+  receivingAccountId: { type: mongoose.Schema.Types.ObjectId, ref: 'PaymentAccount' },
+  receivingDestination: { type: String, enum: ['EMPLOYEE', 'COMPANY', 'UNCLASSIFIED'] },
+  transactionReference: String,
+  recordedByRole: { type: String, enum: ['ADMIN', 'EMPLOYEE', 'SYSTEM'] },
+  idempotencyActor: String,
+  idempotencyKey: String,
+  requestHash: { type: String, select: false }
 }, { timestamps: true });
 
 // Add compound indexes for fast querying of daily collections
 collectionSchema.index({ employeeId: 1, paymentDate: 1 });
 collectionSchema.index({ customerId: 1, paymentDate: 1 });
+collectionSchema.index({ idempotencyActor: 1, idempotencyKey: 1 }, { unique: true, partialFilterExpression: { idempotencyKey: { $type: 'string' } } });
+collectionSchema.index({customerId:1,paymentDate:-1,_id:-1},{name:'portfolio_customer_receipts'});
+collectionSchema.index({paymentDate:1,loanId:1},{name:'dashboard_receipt_period'});
 
 const Collection = mongoose.model('Collection', collectionSchema);
 

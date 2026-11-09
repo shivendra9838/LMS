@@ -1,0 +1,6 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {customerSections,validateCustomerFields} from '../src/components/customers/customerFields.js';
+const valid={name:'Test Customer',fatherName:'Test Parent',age:'19',gender:'Male',occupation:'Test',employeeId:'employee-a',mobile:'9876543210',alternateMobile:'',address:'Test Address',city:'Test',area:'Test',landmark:'',idProofType:'Aadhar',idProofNumber:''};
+test('customer redesign preserves every existing field and optional identity/contact fields',()=>{assert.deepEqual(customerSections.flatMap(s=>s.fields.map(f=>f[0])).sort(),Object.keys(valid).sort());assert.deepEqual(validateCustomerFields(valid),{});const required=customerSections.flatMap(s=>s.fields.filter(f=>f[3]).map(f=>f[0]));assert.deepEqual(required.sort(),['name','fatherName','age','occupation','employeeId','mobile','address','city','area'].sort());});
+test('field errors reject missing assignment, invalid age, short name and invalid primary phone',()=>{const errors=validateCustomerFields({...valid,name:'A',age:'18',mobile:'123',employeeId:''});assert.deepEqual(Object.keys(errors).sort(),['name','age','mobile','employeeId'].sort());assert.ok(validateCustomerFields({...valid,age:'19.5'}).age);assert.ok(validateCustomerFields({...valid,fatherName:' '}).fatherName);});

@@ -14,9 +14,13 @@ const getTodayCollection = async (req, res, next) => {
   }
 };
 
+const getInstallments = async (req,res,next) => {
+  try {res.json({success:true,data:await require('../services/collection.service').getInstallmentsService(req.user,req.query)});}catch(error){next(error);}
+};
+
 const recordCollection = async (req, res, next) => {
   try {
-    const data = await recordCollectionService(req.body, req.user);
+    const data = await recordCollectionService({ ...req.body, idempotencyKey: req.get('Idempotency-Key') || req.body.idempotencyKey }, req.user);
     logAccess('COLLECTION_UPDATED', {
       collectionId: data._id,
       collectionNumber: data.collectionNumber,
@@ -61,6 +65,7 @@ const getCollectionReceipt = async (req, res, next) => {
 };
 
 module.exports = {
+  getInstallments,
   getTodayCollection,
   recordCollection,
   getCollectionHistory,

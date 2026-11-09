@@ -1,0 +1,6 @@
+const {plan}=require('../../src/utils/collectionAllocation');
+const rows=()=>[2,3,4,5].map(dayNumber=>({_id:String(dayNumber),dayNumber,amount:700,paidAmount:dayNumber===2?700:dayNumber===3?100:0}));
+test.each([[600,[[3,600,0]]],[750,[[3,600,0],[4,150,550]]],[1500,[[3,600,0],[4,700,0],[5,200,500]]]])('₹%s carries into exact remaining balances', (amount,expected)=>{const p=plan(rows(),amount*100);expect(p.allocations.map(a=>[a.dayNumber,a.amountMinor/100,a.remainingMinor/100])).toEqual(expected);expect(p.totalAllocatedMinor).toBe(amount*100);expect(p.unallocatedMinor).toBe(0);});
+test('no rounding loss, overpayment or negative outstanding',()=>{const r=[{_id:'1',dayNumber:1,amount:0.3,paidAmount:0.1}];expect(plan(r,20).allocations[0].amountMinor).toBe(20);expect(()=>plan(r,21)).toThrow(/does not reconcile/);expect(()=>plan([{...r[0],paidAmount:0.4}],1)).toThrow(/Admin review/);});
+
+test('500 recovery receipt allocates 181.67, 181.67, 136.66 without changing original dues',()=>{const input=[2,3,4,5].map(dayNumber=>({_id:String(dayNumber),dayNumber,amount:181.67,paidAmount:0})),before=JSON.stringify(input),result=plan(input,50000);expect(result.allocations.map(a=>[a.dayNumber,a.amountMinor,a.remainingMinor])).toEqual([[2,18167,0],[3,18167,0],[4,13666,4501]]);expect(result.totalAllocatedMinor).toBe(50000);expect(JSON.stringify(input)).toBe(before);});

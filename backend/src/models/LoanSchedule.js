@@ -42,5 +42,6 @@ const loanScheduleSchema = new mongoose.Schema({
 
 // Compound index for quick querying of a specific day for a specific loan
 loanScheduleSchema.index({ loanId: 1, dayNumber: 1 }, { unique: true });
+loanScheduleSchema.index({loanId:1,date:1},{name:'portfolio_loan_due_dates'});
 
 module.exports = mongoose.model('LoanSchedule', loanScheduleSchema);

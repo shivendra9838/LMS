@@ -1,0 +1,2 @@
+const mongoose=require('mongoose');
+module.exports=mongoose.model('CompanySettings',new mongoose.Schema({_id:{type:String,default:'company'},name:{type:String,default:'Royal Enterprises'},contactEmail:String,contactPhone:String,address:String,emailSettings:{reminderTime:{type:String,default:'09:00'},cutoffTime:{type:String,default:'18:00'},daily:{type:Boolean,default:true},overdue:{type:Boolean,default:true},kycLoan:{type:Boolean,default:true},paymentSettlement:{type:Boolean,default:true}}},{timestamps:true}));

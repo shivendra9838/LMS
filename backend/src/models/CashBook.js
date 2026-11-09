@@ -36,6 +36,7 @@ const cashBookEntrySchema = new mongoose.Schema({
     type: String,
     index: true
   },
+  fundChannel: { type: String, enum: ['CASH_EMPLOYEE', 'EMPLOYEE_DIGITAL', 'COMPANY_DIGITAL', 'UNCLASSIFIED', 'LEGACY'] },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     refPath: 'createdByModel'

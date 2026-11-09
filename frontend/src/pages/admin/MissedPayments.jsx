@@ -1,11 +1,16 @@
+import LoadingIndicator from "../../components/ui/Loading";
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
+import {CheckCircle2,ExternalLink} from 'lucide-react';
+import './missed-payments.css';
+import { businessDate } from '../../utils/businessDate';
 
 export default function MissedPayments() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error,setError]=useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -13,87 +18,42 @@ export default function MissedPayments() {
   }, []);
 
   const fetchNotifications = async () => {
+    setLoading(true);setError('');
     try {
       const res = await api.get('/notifications');
       setNotifications(res.data.data);
     } catch (error) {
+      setError('Unable to load overdue payments. Please retry.');
       toast.error('Failed to load missed payments notifications');
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) return <div className="p-8 flex justify-center text-gray-500">Loading missed payments...</div>;
+  if (loading) return <LoadingIndicator message={"Loading missed payments…"} className="mp-page mp-state"/>;
 
-  return (
-    <div className="p-8 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Missed Payments</h1>
-          <p className="mt-1 text-sm text-gray-500">Real-time alerts for missed installments across all active loans.</p>
-        </div>
-      </div>
+  return <div className="mp-page">
+    <header className="mp-heading"><h1>Missed Payments</h1><p>Unpaid overdue installments, including matured loans. Derived from actual balances in Asia/Kolkata.</p></header>
+    {error?<div role="alert" className="mp-state mp-error"><p>{error}</p><button className="btn-secondary" onClick={fetchNotifications}>Retry overdue payments</button></div>:<MissedPaymentResults notifications={notifications} onViewLoan={id=>navigate(`/admin/loans/${id}`)}/>}
+  </div>;
+}
 
-      <div className="bg-white shadow-sm rounded-xl border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date & Time</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Message</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Action</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {notifications.map((notif) => (
-                <tr key={notif._id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {new Date(notif.createdAt).toLocaleDateString()}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm font-medium text-gray-900">{notif.title}</div>
-                    <div className="text-sm text-gray-600 mt-1">{notif.message}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="bg-red-100 text-red-800 border-red-200 px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full border">
-                      UNRESOLVED
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      onClick={() => navigate(`/admin/loans/${notif.loanId}`)}
-                      className="text-indigo-600 hover:text-indigo-900 bg-indigo-50 px-3 py-1.5 rounded-md hover:bg-indigo-100 transition-colors font-medium"
-                    >
-                      View Loan
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {notifications.length === 0 && (
-                <tr>
-                  <td colSpan="4" className="px-6 py-12 text-center text-gray-500">
-                    <div className="flex flex-col items-center justify-center">
-                      <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-3">
-                        <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                        </svg>
-                      </div>
-                      <p className="text-lg font-medium text-gray-900">No Missed Payments</p>
-                      <p className="text-sm text-gray-500">All collections are on track right now.</p>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
+const dueAmount=value=>value===null||value===undefined||!Number.isFinite(Number(value))?'Not available':Number(value).toLocaleString('en-IN',{style:'currency',currency:'INR',minimumFractionDigits:2,maximumFractionDigits:2});
+function PaymentDate({notification}){return <><time dateTime={notification.dueDate||notification.createdAt}>{businessDate(notification.dueDate||notification.createdAt)}</time><small>{notification.dueDate?'Original installment due date':new Date(notification.createdAt).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'})}</small></>;}
+function LoanAction({notification,onViewLoan}){return <button type="button" className="mp-view-loan" disabled={!notification.loanId} onClick={()=>onViewLoan(notification.loanId)}><ExternalLink size={15} aria-hidden="true"/>View Loan</button>;}
+function PaymentStatus(){return <span className="mp-status">UNRESOLVED</span>;}
+
+export function MissedPaymentResults({notifications,onViewLoan}){
+ if(!notifications.length)return <div className="mp-state mp-empty" role="status"><CheckCircle2 size={32} aria-hidden="true"/><h2>No Missed Payments</h2><p>All collections are on track right now.</p></div>;
+ return <>
+  <div className="mp-table-wrap"><table className="mp-table" aria-label="Missed payments"><thead><tr><th scope="col">Date &amp; Time</th><th scope="col">Message</th><th scope="col">Status</th><th scope="col">Action</th></tr></thead><tbody>{notifications.map(notification=><tr key={notification._id}>
+   <td><PaymentDate notification={notification}/></td><td><strong>{notification.title}</strong><p>{notification.message}</p></td><td><PaymentStatus/></td><td><LoanAction notification={notification} onViewLoan={onViewLoan}/></td>
+  </tr>)}</tbody></table></div>
+  <div className="mp-cards" role="list" aria-label="Missed payment cards">{notifications.map(notification=><article className="mp-card" key={notification._id} role="listitem">
+   <header><div><span className="mp-label">Date</span><PaymentDate notification={notification}/></div><PaymentStatus/></header>
+   <dl><div><dt>Loan ID</dt><dd>{notification.loanNumber||'Not available'}{notification.dayNumber&&<small>Installment {notification.dayNumber}</small>}</dd></div><div><dt>Customer</dt><dd>{notification.customerName||'Not available'}</dd></div><div><dt>Due Amount</dt><dd className="mp-amount">{dueAmount(notification.remainingAmount)}</dd></div><div><dt>Employee</dt><dd>{notification.employeeName||'Assignment requires review'}</dd></div></dl>
+   {notification.type==='GENERAL'&&<p className="mp-general">{notification.title}<br/>{notification.message}</p>}
+   <LoanAction notification={notification} onViewLoan={onViewLoan}/>
+  </article>)}</div>
+ </>;
 }

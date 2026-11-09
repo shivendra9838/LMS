@@ -1,0 +1,37 @@
+const ExcelJS=require('exceljs');
+const employees=data=>data.employees.map(e=>({Employee:e.employeeCode,Name:e.name,Collections:e.collectionsMinor/100,'Cash held':e.cashHeldMinor/100,'UPI held':e.upiHeldMinor/100,'Bank held':e.bankHeldMinor/100,Unclassified:e.unclassifiedMinor/100,'Company unverified':e.pendingCompanyMinor/100}));
+async function xlsx(data) {
+ const book=new ExcelJS.Workbook();
+ const sheet=(name,rows)=>{const tab=book.addWorksheet(name);tab.columns=Object.keys(rows[0]||{Result:0}).map(key=>({header:key,key,width:24}));rows.forEach(row=>tab.addRow(row));tab.getRow(1).font={bold:true};tab.views=[{state:'frozen',ySplit:1}];};
+ sheet('Employee reconciliation',employees(data));
+ sheet('Summary',Object.entries(data.totals).map(([label,value])=>({Metric:label,INR:value/100})));
+ sheet('Customer collections',data.positions.map(p=>({Receipt:p.collectionId?.collectionNumber,'Original payment date':p.paymentDate,'System entry timestamp':p.recordedAt||p.createdAt,'Backdated entry reason':p.collectionId?.backdateReason||'',Method:p.method,Custody:p.bucket,INR:p.amountMinor/100,'Reserved INR':p.reservedMinor/100,'Settled INR':p.settledMinor/100,Verification:p.verification,Settlement:p.settlementStatus,Account:p.accountId?.label,Reference:p.reference})));
+ sheet('Internal settlements',data.settlements.map(s=>({Settlement:String(s._id),Employee:String(s.employeeId),Kind:s.kind,INR:s.amountMinor/100,'Filtered allocation INR':s.filteredAmountMinor/100,Status:s.status,'Transfer date':s.occurredAt,'Verified date':s.verifiedAt,'Employee source':s.sourceAccountId?.label,Account:s.accountId?.label,Reference:s.reference,'Admin remarks':s.reviewRemarks})));
+ sheet('Legacy unclassified',data.legacy.map(c=>({Receipt:c.collectionNumber,Employee:String(c.employeeId),INR:c.amountReceived,Method:c.paymentMode,'Original payment date':c.paymentDate})));
+ const notes=book.addWorksheet('Definitions');notes.addRow([`Currency INR; ${data.dates.from} to ${data.dates.to}; ${data.dates.timeZone}`]);data.notes.forEach(note=>notes.addRow([note]));notes.getColumn(1).width=110;
+ return Buffer.from(await book.xlsx.writeBuffer());
+}
+async function pdf(data,context={}) {
+ const {createRoyalPdf,money,stamp,date}=require('../utils/royalPdf');
+ const report=await createRoyalPdf({title:'Daily Reconciliation Report',subtitle:'Customer Collections & Employee Settlements',...context});
+ report.fields([['Reconciliation date',date(data.dates.from)+' - '+date(data.dates.to)],['Time zone',data.dates.timeZone],['Employees in report',String(data.employees.length)]],3);
+ if(context.filters?.length)report.paragraph('Applied filters: '+context.filters.map(([key,value])=>key+': '+value).join(' | '),7);
+ report.section('Employee-wise Summary');
+ report.paragraph('Collections follow the selected period. Held and unclassified balances are current across all dates.',7);
+ report.table(['Code','Employee',{label:'Collections (₹)',right:true},{label:'Cash held (₹)',right:true},{label:'UPI held (₹)',right:true},{label:'Bank held (₹)',right:true},{label:'Unclassified (₹)',right:true},{label:'Company pending (₹)',right:true}],data.employees.map(e=>[e.employeeCode,e.name,...['collectionsMinor','cashHeldMinor','upiHeldMinor','bankHeldMinor','unclassifiedMinor','pendingCompanyMinor'].map(k=>e[k]==null?'Not recorded':money(e[k]/100))]),[.10,.19,.12,.12,.10,.10,.12,.15]);
+ const labels={collectionsMinor:'Customer collections',cashCollectedMinor:'Cash collected',companyUpiMinor:'Company-direct UPI',employeeUpiMinor:'Employee-received UPI',bankCollectedMinor:'Bank collected',unclassifiedMinor:'Unclassified funds',cashHeldMinor:'Physical cash held',digitalHeldMinor:'Digital funds held',upiHeldMinor:'Employee UPI held',bankHeldMinor:'Employee bank held',availableCashMinor:'Available cash',availableDigitalMinor:'Available digital',reservedMinor:'Reserved employee funds',pendingCompanyMinor:'Company funds pending',verifiedCompanyMinor:'Verified company funds',previousOutstandingMinor:'Earlier collections outstanding',submittedMinor:'Submitted - awaiting review',verifiedSettlementsMinor:'Verified settlements',rejectedMinor:'Rejected settlements',disputedMinor:'Disputed settlements',cashShortageMinor:'Observed cash shortage',differenceMinor:'Reconciliation difference'};
+ const period=new Set(['collectionsMinor','cashCollectedMinor','companyUpiMinor','employeeUpiMinor','bankCollectedMinor','verifiedSettlementsMinor','rejectedMinor']);
+ for(const [title,isPeriod,fill] of [['Activity in Selected Period',true,report.C.cream],['Current Custody & Outstanding - All Dates',false,report.C.blue]]){report.section(title);report.metrics(Object.entries(data.totals).filter(([key])=>period.has(key)===isPeriod).map(([key,value])=>[labels[key]||key.replace(/Minor$/,'').replace(/([a-z])([A-Z])/g,'$1 $2'),value==null?'Not recorded':money(value/100)]),3,fill);}
+ report.section('Notes & Definitions');report.paragraph('Customer collections and employee-to-company settlements are separate. Transfers are not new customer revenue.',7.2);(data.notes||[]).forEach(note=>report.paragraph('- '+note,7.2));report.paragraph('Reconciliation difference is the recorded discrepancy on disputed settlements, not period collections minus current custody.',7.2);
+ report.section('Customer Collections - Original Received Dates');
+ report.table(['Receipt','Received / System entry','Customer / Loan','Method / Custody',{label:'Amount (₹)',right:true},'Funds verification / Reference'],data.positions.map(p=>[p.collectionId?.collectionNumber,date(p.paymentDate)+' / '+stamp(p.recordedAt||p.createdAt||p.paymentDate),[p.collectionId?.customerId?.name,p.collectionId?.loanId?.loanNumber].filter(Boolean).join(' / ')||'Not recorded',p.method+' / '+p.bucket,money(p.amountMinor/100),[p.verification,p.reference||'No reference'].join(' / ')]),[.14,.18,.19,.17,.13,.19]);
+ report.section('Employee Settlements - Internal Transfers');
+ const roster=new Map(data.employees.map(e=>[String(e._id),e.name+' ('+e.employeeCode+')']));
+ report.table(['Reference / Employee','Method / Destination',{label:'Submitted / Filtered (₹)',right:true},'Status / Actual transfer / Verified','Admin remarks'],data.settlements.map(s=>[[s.reference,String(s._id),roster.get(String(s.employeeId))||String(s.employeeId)].join(' / '),[s.kind,s.sourceAccountId?.label,s.accountId?.label].filter(Boolean).join(' / '),money(s.amountMinor/100)+' / '+money(s.filteredAmountMinor/100),[s.status,stamp(s.occurredAt),s.status==='VERIFIED'?stamp(s.verifiedAt):s.verifiedAt?'Original verification '+stamp(s.verifiedAt)+' (no longer verified)':'Not verified'].join(' / '),s.reviewRemarks?.length>140?'See full review remarks below':s.reviewRemarks||'Not recorded']),[.24,.18,.18,.22,.18]);
+ for(const settlement of data.settlements.filter(s=>s.reviewRemarks?.length>140)){report.section('Review Remarks - '+(settlement.reference||String(settlement._id)));report.paragraph(settlement.reviewRemarks,8);}
+ report.section('Legacy Receipts - Unclassified Destination');
+ report.paragraph('Original legacy receipt amounts and loan balances remain unchanged. Destination classification requires evidence.',7.5);
+ report.table(['Receipt','Employee','Method','Original payment date',{label:'Amount (₹)',right:true}],data.legacy.map(c=>[c.collectionNumber,roster.get(String(c.employeeId))||String(c.employeeId),c.paymentMode,date(c.paymentDate),money(c.amountReceived)]),[.2,.24,.14,.23,.19]);
+ return report.save();
+}
+module.exports={xlsx,pdf};

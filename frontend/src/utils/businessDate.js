@@ -1,0 +1,2 @@
+export const businessDate = value => {if(!value)return '—';const format=typeof document==='undefined'?undefined:document.documentElement.dataset.dateFormat;if(format==='YYYY-MM-DD')return businessDay(value);return new Date(value).toLocaleDateString(format==='DD/MM/YYYY'?'en-GB':'en-IN',{timeZone:'Asia/Kolkata',day:'2-digit',month:format==='DD/MM/YYYY'?'2-digit':'short',year:'numeric'});};
+export const businessDay = (value = new Date()) => new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value));

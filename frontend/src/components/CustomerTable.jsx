@@ -1,5 +1,9 @@
+import LoadingIndicator from './ui/Loading';
+import {CustomerIdentity} from './CustomerPhoto';
+import {customerRowProps} from '../utils/customerPhoto';
+import CustomerRisk,{RiskGroup} from './CustomerRisk';
 import { Edit2, ShieldAlert, ShieldCheck, Eye } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../services/api';
 import StatusBadge from './StatusBadge';
@@ -21,7 +25,7 @@ const CustomerTable = ({ customers, loading, refresh, basePath = '/admin/custome
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <LoadingIndicator message="Loading customers…" variant="section"/>
       </div>
     );
   }
@@ -35,7 +39,16 @@ const CustomerTable = ({ customers, loading, refresh, basePath = '/admin/custome
   }
 
   return (
-    <table className="w-full text-left text-sm text-gray-600">
+    <RiskGroup ids={customers.map(c=>c._id)}>
+    <div className="md:hidden divide-y divide-gray-100">
+      {customers.map(customer => <article key={customer._id} {...customerRowProps(customer,basePath,navigate)} className="customer-click-row p-4 space-y-3">
+        <div className="flex flex-wrap justify-between items-start gap-2"><CustomerIdentity customer={customer} basePath={basePath}/><StatusBadge status={customer.status} /></div>
+        <CustomerRisk customerId={customer._id}/><dl className="text-sm grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2"><dt className="text-gray-500">Mobile</dt><dd><a className="text-blue-700 inline-flex items-center" href={`tel:${customer.mobile}`}>{customer.mobile}</a></dd><dt className="text-gray-500">Location</dt><dd>{customer.city} · {customer.area}</dd></dl>
+        <div className="grid grid-cols-2 gap-2"><button className="btn-primary text-sm" onClick={() => navigate(`${basePath}/${customer._id}`)}>View Details</button><button className="btn-secondary text-sm" onClick={() => navigate(`${basePath}/${customer._id}/${customer.kycLeadId ? 'kyc' : 'edit'}`)}>{customer.kycLeadId ? 'View / Revise KYC' : 'Edit Customer'}</button></div>
+        <button className="text-sm text-gray-600 underline w-full" onClick={() => toggleStatus(customer._id, customer.status)}>{customer.status === 'ACTIVE' ? 'Deactivate Customer' : 'Activate Customer'}</button>
+      </article>)}
+    </div>
+    <table className="hidden md:table w-full text-left text-sm text-gray-600">
       <thead className="bg-gray-50/50 text-gray-700 text-xs uppercase tracking-wider border-b border-gray-100">
         <tr>
           <th className="px-6 py-4 font-medium">Code</th>
@@ -48,11 +61,10 @@ const CustomerTable = ({ customers, loading, refresh, basePath = '/admin/custome
       </thead>
       <tbody className="divide-y divide-gray-100">
         {customers.map((cus) => (
-          <tr key={cus._id} className="hover:bg-gray-50/50 transition-colors group">
-            <td className="px-6 py-4 font-medium text-gray-900">{cus.customerCode}</td>
+          <tr key={cus._id} {...customerRowProps(cus,basePath,navigate)}>
+            <td className="px-6 py-4 font-medium text-gray-900"><Link to={`${basePath}/${cus._id}`}>{cus.customerCode}</Link></td>
             <td className="px-6 py-4">
-              <div className="font-medium text-gray-900">{cus.name}</div>
-              <div className="text-xs text-gray-500">{cus.occupation}</div>
+              <CustomerIdentity customer={cus} basePath={basePath} showCode={false}/><CustomerRisk customerId={cus._id}/>
             </td>
             <td className="px-6 py-4">
               <div className="font-medium text-gray-900">{cus.mobile}</div>
@@ -65,7 +77,7 @@ const CustomerTable = ({ customers, loading, refresh, basePath = '/admin/custome
               <StatusBadge status={cus.status} />
             </td>
             <td className="px-6 py-4 text-right">
-              <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex justify-end gap-2">
                 <button
                   onClick={() => navigate(`${basePath}/${cus._id}`)}
                   className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
@@ -85,9 +97,9 @@ const CustomerTable = ({ customers, loading, refresh, basePath = '/admin/custome
                   {cus.status === 'ACTIVE' ? <ShieldAlert size={16} /> : <ShieldCheck size={16} />}
                 </button>
                 <button
-                  onClick={() => navigate(`${basePath}/${cus._id}/edit`)}
+                  onClick={() => navigate(`${basePath}/${cus._id}/${cus.kycLeadId ? 'kyc' : 'edit'}`)}
                   className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                  title="Edit"
+                  title={cus.kycLeadId ? 'View / Revise KYC' : 'Edit'}
                 >
                   <Edit2 size={16} />
                 </button>
@@ -97,6 +109,7 @@ const CustomerTable = ({ customers, loading, refresh, basePath = '/admin/custome
         ))}
       </tbody>
     </table>
+    </RiskGroup>
   );
 };
 

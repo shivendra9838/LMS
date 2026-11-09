@@ -21,7 +21,7 @@ const getLoanListController = async (req, res, next) => {
     const data = await getLoanListService(req.query, req.user);
     res.status(200).json({
       success: true,
-      meta: { total: data.total, page: data.page, totalPages: data.totalPages },
+      meta: { total: data.total, page: data.page, totalPages: data.totalPages, ...(data.counts?{counts:data.counts}:{}) },
       data: data.loans
     });
   } catch (error) {
@@ -52,7 +52,8 @@ const { getLoanTimeline } = require('../repositories/loanTimeline.repository');
 
 const getLoanTimelineController = async (req, res, next) => {
   try {
-    const timeline = await getLoanTimeline(req.params.id);
+    const loan=await getLoanByIdService(req.params.id,req.user);
+    const timeline = await getLoanTimeline(req.params.id,loan);
     res.status(200).json({ success: true, data: timeline });
   } catch (error) {
     next(error);

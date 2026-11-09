@@ -9,8 +9,10 @@ const validateLogin = [
     .withMessage('Invalid email format')
     .normalizeEmail(),
   body('password')
+    .isString()
+    .isLength({max:1000})
     .notEmpty()
-    .withMessage('Password is required'),
+    .withMessage('Password is required').hide(),
   validate
 ];
 

@@ -1,0 +1,13 @@
+import test,{before,after} from 'node:test';
+import assert from 'node:assert/strict';
+import {createServer} from 'vite';
+import React from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+import {MemoryRouter} from 'react-router-dom';
+let vite,Summary;
+before(async()=>{vite=await createServer({cacheDir:'node_modules/.vite-tests/dashboard-summary',optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true,hmr:false,ws:false},appType:'custom'});Summary=(await vite.ssrLoadModule('/src/pages/employee/Dashboard.jsx')).EmployeeDashboardSummary;});
+after(async()=>vite?.close());
+const data={openingCollectible:2726.68,remainingCollectible:1726.68,collected:1200,activeCustomers:2,assignedCustomers:2,dueCustomerCount:2,overdueCustomerCount:1,advanceAllocatedOnDate:200};
+const render=(extra={})=>renderToStaticMarkup(React.createElement(MemoryRouter,null,React.createElement(Summary,{data,today:true,...extra})));
+test('only four KPIs show opening, actual receipts and authoritative remaining independently',()=>{const html=render();assert.equal((html.match(/<article/g)||[]).length,4);for(const label of ['Today’s Target','Collected Today','Remaining Today','Active Customers','₹2,726.68','₹1,200.00','₹1,726.68','Including previous overdue'])assert.ok(html.includes(label),label);assert.doesNotMatch(html,/Previous Overdue|Today’s Scheduled Amount|Remaining Collectible/);});
+test('historical cards identify date basis and incomplete reconstruction remains unavailable',()=>{const html=render({today:false,data:{...data,openingCollectible:null,collectibleBalanceKnown:false}});assert.match(html,/Target at Date/);assert.match(html,/Collected on Date/);assert.match(html,/Remaining at Date/);assert.match(html,/Unavailable/);assert.doesNotMatch(html,/₹2,726.68|₹1,726.68/);});

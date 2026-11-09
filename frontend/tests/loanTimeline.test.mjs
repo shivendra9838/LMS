@@ -1,0 +1,17 @@
+import test,{before,after} from 'node:test';
+import assert from 'node:assert/strict';
+import {createServer} from 'vite';
+import React from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+import {MemoryRouter} from 'react-router-dom';
+import {readFileSync} from 'node:fs';
+import {URL} from 'node:url';
+let vite,Timeline,time;
+before(async()=>{vite=await createServer({cacheDir:'node_modules/.vite-tests/loan-timeline',optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true,hmr:false,ws:false},appType:'custom'});const m=await vite.ssrLoadModule('/src/components/LoanTimeline.jsx');Timeline=m.default;time=m.activityTime;});
+after(async()=>{await vite?.close();});
+const render=(events,portal='employee')=>renderToStaticMarkup(React.createElement(MemoryRouter,null,React.createElement(Timeline,{events,portal,loanNumber:'SYN1',onLoanDetails:()=>{}})));
+const event={_id:'receipt:r',type:'PAYMENT_RECEIVED',title:'₹800 Payment Received',date:'2026-10-28T13:56:10.275Z',description:'Cash · Receipt SYN800',receiptId:'r800',target:'RECEIPT'};
+test('both portal payment events link to exact existing receipt with full amount and IST time',()=>{for(const p of ['admin','employee']){const html=render([event],p);assert.match(html,/₹800 Payment Received/);assert.match(html,new RegExp('/'+p+'/collections/receipt/r800'));assert.match(html,/Latest activity first/);assert.match(html,/28 Oct 2026/);assert.match(html,/7:26/);assert.match(html,/IST/);assert.doesNotMatch(html,/>PAYMENT_RECEIVED</);}});
+test('initial five events, compact rail and arrows, real schedule navigation and read-only review details',()=>{const events=[{...event,_id:'v',type:'PAYMENT_VERIFIED',target:'REVIEW',title:'Payment Verified',review:{verifiedBy:'Synthetic Admin',verifiedAt:event.date,remarks:'Checked'},collectionNumber:'SYN800'},{...event,_id:'s',type:'SCHEDULE_GENERATED',target:'SCHEDULE',title:'Installment Schedule Created'},...Array.from({length:4},(_,i)=>({...event,_id:'r'+i}))];const html=render(events);assert.equal((html.match(/class="la-event /g)||[]).length,5);assert.match(html,/View All Activity \(6\)/);assert.match(html,/la-arrow/);assert.match(html,/View verification details/);assert.match(html,/Synthetic Admin/);assert.match(html,/Checked/);assert.match(html,/scope=ALL&amp;loan=SYN1/);assert.doesNotMatch(html,/>Verify Payment</);});
+test('empty activity and missing timestamp do not invent dates',()=>{assert.match(render([]),/No recorded activity/);assert.equal(time(null),'Time not recorded');assert.equal(time('invalid'),'Time not recorded');});
+test('tabs have a scoped horizontal strip without negative margins',()=>{const source=readFileSync(new URL('../src/components/LoanDetailsView.jsx',import.meta.url),'utf8');assert.match(source,/className="rl-tabs"/);const css=readFileSync(new URL('../src/components/loans/loans.css',import.meta.url),'utf8');assert.match(css,/\.rl-tabs button\{flex:0 0 auto\}/);assert.doesNotMatch(source,/-mb-px|mb-6 overflow-x-auto/);});

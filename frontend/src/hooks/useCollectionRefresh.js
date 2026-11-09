@@ -1,0 +1,8 @@
+import {useEffect,useState} from 'react';
+export function useCollectionRefresh(role,enabled=true){const [revision,setRevision]=useState(0);useEffect(()=>{if(!enabled)return;const refresh=e=>{if(e?.detail?.role&&e.detail.role!==role)return;if(!document.hidden)setRevision(n=>n+1);};const timer=setInterval(refresh,15000);window.addEventListener('royal:inbox',refresh);window.addEventListener('royal:financial-change',refresh);window.addEventListener('focus',refresh);document.addEventListener('visibilitychange',refresh);return()=>{clearInterval(timer);window.removeEventListener('royal:inbox',refresh);window.removeEventListener('royal:financial-change',refresh);window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',refresh);};},[role,enabled]);return [revision,setRevision];}
+
+// Keep the current page mounted during background refresh, including in-progress review remarks.
+import api from '../services/api';
+import {readPayload} from '../components/portfolios/PortfolioUi';
+export function useCollectionRead(url,revision=0){const [state,setState]=useState({key:null,data:null,loading:true,error:''});useEffect(()=>{if(!url)return;const controller=new AbortController();setState(old=>({key:url,data:old.key===url?old.data:null,loading:true,error:''}));api.get(url,{signal:controller.signal}).then(res=>setState({key:url,data:readPayload(res.data),loading:false,error:''})).catch(e=>{if(e.code!=='ERR_CANCELED')setState(old=>({...old,loading:false,error:e.response?.data?.message||'Unable to load collection records. Please refresh.'}));});return()=>controller.abort();},[url,revision]);if(!url)return {loading:false,data:null,error:''};return state.key===url?state:{loading:true,data:null,error:''};}
+

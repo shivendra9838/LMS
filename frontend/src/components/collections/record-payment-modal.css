@@ -1,0 +1,36 @@
+.rp-overlay{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:12px;background:#000a;overflow:hidden}
+.payment-dialog.rp-dialog{display:flex;flex-direction:column;width:min(100%,600px);min-width:0;max-height:90vh;max-height:90dvh;margin:0;overflow:hidden;border:1px solid #465047;border-radius:12px;background:#111b1e;color:#eef4f3;box-shadow:0 20px 65px #0008;font-size:13px;line-height:1.55;isolation:isolate}
+.rp-dialog .rp-header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:none;padding:12px 18px;border-bottom:1px solid #354343}
+.rp-dialog .rp-header h3{margin:0;font-size:18px;color:#f4f6f3}
+.rp-dialog .rp-header button{width:44px;height:44px;flex:none;display:grid;place-items:center;color:#c9d4d2;border-radius:8px}
+.rp-dialog .rp-body{min-height:0;min-width:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;padding:16px 18px;scroll-padding-block:12px;scrollbar-width:thin}
+.rp-dialog .rp-payment-details{padding:12px;margin-bottom:12px;background:#19292c;border:1px solid #354b4d;border-radius:8px}
+.rp-dialog .rp-form{display:grid;gap:12px;min-width:0}
+.rp-dialog .rp-form>*{min-width:0;margin-block:0}
+.rp-dialog :is(p,label,li,span){white-space:normal;word-break:normal;overflow-wrap:break-word}
+.rp-dialog :is(p,label,li){line-height:1.55}
+.rp-dialog label:not(.rp-check){display:block;font-size:13px;color:#dce6e3}
+.rp-dialog input:not([type=checkbox]),.rp-dialog select,.rp-dialog textarea{box-sizing:border-box;display:block;width:100%;min-width:0;min-height:44px;padding:9px 11px;margin-top:5px;border:1px solid #496163;border-radius:7px;background:#09191c;color:#f0f6f3;font-size:14px;color-scheme:dark}
+.rp-dialog input::placeholder{color:#94aaa7}
+.rp-dialog :is(.text-gray-900,.text-gray-700){color:#edf4f0}
+.rp-dialog :is(.text-gray-600,.text-gray-500){color:#b9cbc7}
+.rp-dialog .text-red-700{color:#ffb6ac}
+.rp-dialog .rp-check{display:flex;align-items:flex-start;gap:10px;min-width:0;min-height:44px;padding:8px 0;color:#e1ebe6;cursor:pointer;font-size:13px}
+.rp-dialog .rp-check input[type=checkbox]{box-sizing:border-box;display:block;flex:0 0 18px;width:18px;height:18px;min-width:18px;min-height:18px;max-width:18px;padding:0;margin:2px 0 0;border-radius:3px;accent-color:#e6ba53}
+.rp-dialog .rp-check>span{display:block;flex:1;min-width:0;line-height:1.55}
+.rp-dialog .rp-footer{flex:none;display:grid;gap:8px;padding:12px 18px;background:#111b1e;border-top:1px solid #40504b}
+.rp-dialog .rp-footer-buttons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;min-width:0}
+.rp-dialog .rp-footer button{min-width:0;min-height:44px;padding:10px 8px;line-height:1.4;white-space:normal;border-radius:7px;font-size:13px}
+.rp-dialog .rp-footer button[type=button]{background:#182a2c;color:#e3ece7;border-color:#4b6461}
+.rp-dialog .rp-footer button[type=submit]{background:linear-gradient(110deg,#f6d57e,#dfad40);border:1px solid #e5b64d;color:#211a08;font-weight:650}
+.rp-dialog button:disabled{opacity:.5;cursor:not-allowed}
+.rp-dialog :is(input,select,textarea,button,summary):focus-visible{outline:2px solid #f0c869;outline-offset:2px}
+@media(max-width:480px){.rp-overlay{padding:8px}.rp-dialog .rp-header{padding:8px 12px}.rp-dialog .rp-body{padding:12px}.rp-dialog .rp-footer{padding:10px 12px}.rp-dialog input:not([type=checkbox]),.rp-dialog select,.rp-dialog textarea{font-size:16px}.rp-dialog .rp-header h3{font-size:17px}}
+@media(max-height:480px){.rp-dialog .rp-header{padding-block:3px}.rp-dialog .rp-footer{padding-block:6px}}
+
+.rp-dialog .rp-minimum{padding:10px 12px;border:1px solid #7a6638;border-radius:8px;background:#211e15}
+.rp-minimum p{display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px 12px;margin:3px 0}
+.rp-minimum small{display:block;color:#c6c8bd}
+.rp-minimum-total{border-top:1px solid #655734;padding-top:6px;color:#f2d07d;font-weight:600}
+.payment-dialog.rp-dialog input[aria-invalid=true]{border:2px solid #f87171!important}
+.rp-dialog .rp-amount-error{color:#ffaca5;font-size:12px;margin:6px 0 0;overflow-wrap:break-word}

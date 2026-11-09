@@ -1,0 +1,13 @@
+import test,{before,after} from 'node:test';
+import assert from 'node:assert/strict';
+import React from 'react';
+import {MemoryRouter} from 'react-router-dom';
+import {renderToStaticMarkup} from 'react-dom/server';
+import {createServer} from 'vite';
+let vite,frame,settings;
+before(async()=>{vite=await createServer({cacheDir:'node_modules/.vite-tests/settings-frame',server:{middlewareMode:true,hmr:false,ws:false},optimizeDeps:{noDiscovery:true,include:[]},appType:'custom'});frame=await vite.ssrLoadModule('/src/components/SettingsFrame.jsx');settings=await vite.ssrLoadModule('/src/pages/shared/Settings.jsx');});
+after(async()=>vite?.close());
+const render=props=>renderToStaticMarkup(React.createElement(MemoryRouter,null,React.createElement(frame.default,props,React.createElement('div',null,'Existing settings controls'))));
+test('settings role navigation retains all existing sections without employee access to Admin controls',()=>{const admin=settings.settingsSections(true).map(([id])=>id),employee=settings.settingsSections(false).map(([id])=>id);assert.deepEqual(admin,['profile','security','preferences','employees','permissions','company','financial','audit','requests','help']);for(const id of ['profile','address','work','security','preferences','quick','requests','help'])assert.ok(employee.includes(id));for(const id of ['employees','permissions','company','financial','audit'])assert.ok(!employee.includes(id));});
+test('one shared frame provides compact navigation, active state and mobile Back without changing the portal shell',()=>{const html=render({admin:true,sections:settings.settingsSections(true),section:'security',mobileDetail:true,onSection:()=>{}});assert.match(html,/settings-detail/);assert.equal((html.match(/aria-current="page"/g)||[]).length,1);assert.match(html,/Back to Settings/);assert.match(html,/Existing settings controls/);assert.doesNotMatch(html,/portal-sidebar|portal-header|mobile-work-nav|<img/);});
+test('mobile menu and detail are distinct views and Employee settings preserve request and support access',()=>{const html=render({sections:settings.settingsSections(false),section:'profile',mobileDetail:false,onSection:()=>{}});assert.match(html,/settings-menu/);assert.match(html,/Account requests/);assert.match(html,/Help &amp; support/);assert.doesNotMatch(html,/Financial settings|Employee management|Roles &amp; permissions/);});

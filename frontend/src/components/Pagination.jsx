@@ -8,6 +8,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
       </div>
       <div className="flex gap-2">
         <button
+          aria-label="Previous page"
           disabled={currentPage === 1}
           onClick={() => onPageChange(currentPage - 1)}
           className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -15,6 +16,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
           <ChevronLeft size={18} />
         </button>
         <button
+          aria-label="Next page"
           disabled={currentPage === totalPages}
           onClick={() => onPageChange(currentPage + 1)}
           className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"

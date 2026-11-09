@@ -11,6 +11,7 @@ const validateCreateEmployee = [
   body('name').notEmpty().withMessage('Name is required'),
   body('email').notEmpty().withMessage('Email is required').isEmail().withMessage('Invalid email format').normalizeEmail(),
   phoneRule('phone'),
+  body('joiningDate').optional().isISO8601({strict:true}).withMessage('Use a valid joining date'),
   body('city').if(body('branchId').not().exists()).notEmpty().withMessage('City or branchId is required'),
   body('branchId').optional().isMongoId().withMessage('Valid Branch ID is required'),
   body('area').notEmpty().withMessage('Area is required'),

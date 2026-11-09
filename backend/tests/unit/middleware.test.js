@@ -1,6 +1,7 @@
 const { authorizeRoles } = require('../../src/middlewares/role.middleware');
 const { authenticate } = require('../../src/middlewares/auth.middleware');
 const { generateToken } = require('../../src/utils/jwt');
+jest.mock('../../src/models/Admin',()=>({findById:jest.fn(()=>({select:jest.fn().mockResolvedValue({isActive:true,authVersion:0})}))}));
 
 const mockResponse = () => {
   const res = {};
@@ -39,13 +40,13 @@ describe('Auth Middleware', () => {
     process.env.JWT_SECRET = 'test-secret';
   });
 
-  test('authenticates bearer tokens', () => {
+  test('authenticates bearer tokens', async () => {
     const token = generateToken('user-1', 'ADMIN');
     const req = { headers: { authorization: `Bearer ${token}` } };
     const res = mockResponse();
     const next = jest.fn();
 
-    authenticate(req, res, next);
+    await authenticate(req, res, next);
 
     expect(req.user.id).toBe('user-1');
     expect(req.user.role).toBe('ADMIN');

@@ -1,10 +1,14 @@
 const CashBook = require('../models/CashBook');
+const { legacyMinor, major } = require('../utils/money');
+const signedMinor = value => Math.sign(Number(value || 0)) * legacyMinor(Math.abs(Number(value || 0)));
+const sumMoney = (entries, field) => major(entries.reduce((sum, entry) => {
+  const next = sum + legacyMinor(entry[field]);
+  if (!Number.isSafeInteger(next)) throw Object.assign(new Error('Cash-book total exceeds safe monetary limits'), { status: 422 });
+  return next;
+}, 0));
+const closing = book => major(signedMinor(book.openingBalance) + legacyMinor(book.cashIn) - legacyMinor(book.cashOut));
 
-const normalizeDate = (date = new Date()) => {
-  const normalized = new Date(date);
-  normalized.setHours(0, 0, 0, 0);
-  return normalized;
-};
+const normalizeDate = (date = new Date()) => require('../utils/businessDay').dayStart(require('../utils/businessDay').businessDay(date));
 
 const getPerformerModel = (role) => {
   if (role === 'EMPLOYEE') return 'Employee';
@@ -23,7 +27,7 @@ const getPreviousCashBook = async (date, session) => {
 
 const getCashBookForDate = async (date, session) => {
   const normalizedDate = normalizeDate(date);
-  let query = CashBook.findOne({ date: normalizedDate });
+  let query = CashBook.findOne({ date: {$gte:normalizedDate,$lt:new Date(normalizedDate.getTime()+86400000)} });
   if (session) query = query.session(session);
   let cashBook = await query;
 
@@ -56,9 +60,9 @@ const recalculateBalancesFrom = async (date, session, preserveFirstOpening = fal
     if (!preserveFirstOpening || index > 0) {
       book.openingBalance = runningOpening;
     }
-    book.cashIn = book.entries.reduce((sum, entry) => sum + (entry.cashIn || 0), 0);
-    book.cashOut = book.entries.reduce((sum, entry) => sum + (entry.cashOut || 0), 0);
-    book.closingBalance = book.openingBalance + book.cashIn - book.cashOut;
+    book.cashIn = sumMoney(book.entries, 'cashIn');
+    book.cashOut = sumMoney(book.entries, 'cashOut');
+    book.closingBalance = closing(book);
     await book.save({ session });
     runningOpening = book.closingBalance;
   }
@@ -74,7 +78,8 @@ const recordCashBookEntry = async ({
   referenceModel,
   referenceId,
   createdBy,
-  createdByModel = 'Admin'
+  createdByModel = 'Admin',
+  fundChannel = 'LEGACY'
 }, session) => {
   const normalizedDate = normalizeDate(date);
   const cashBook = await getCashBookForDate(normalizedDate, session);
@@ -108,11 +113,12 @@ const recordCashBookEntry = async ({
     referenceId,
     transactionKey,
     createdBy,
-    createdByModel
+    createdByModel,
+    fundChannel
   });
-  cashBook.cashIn += cashIn;
-  cashBook.cashOut += cashOut;
-  cashBook.closingBalance = cashBook.openingBalance + cashBook.cashIn - cashBook.cashOut;
+  cashBook.cashIn = sumMoney(cashBook.entries, 'cashIn');
+  cashBook.cashOut = sumMoney(cashBook.entries, 'cashOut');
+  cashBook.closingBalance = closing(cashBook);
 
   await cashBook.save({ session });
   await recalculateBalancesFrom(normalizedDate, session);
@@ -129,9 +135,9 @@ const removeCashBookEntriesByReference = async (referenceModel, referenceId, ses
     book.entries = book.entries.filter(entry => {
       return !(entry.referenceModel === referenceModel && entry.referenceId?.toString() === referenceId.toString());
     });
-    book.cashIn = book.entries.reduce((sum, entry) => sum + (entry.cashIn || 0), 0);
-    book.cashOut = book.entries.reduce((sum, entry) => sum + (entry.cashOut || 0), 0);
-    book.closingBalance = book.openingBalance + book.cashIn - book.cashOut;
+    book.cashIn = sumMoney(book.entries, 'cashIn');
+    book.cashOut = sumMoney(book.entries, 'cashOut');
+    book.closingBalance = closing(book);
     await book.save({ session });
     await recalculateBalancesFrom(book.date, session);
   }
@@ -173,7 +179,7 @@ const setOpeningBalanceService = async (date, openingBalance) => {
   const cashBook = await getCashBookForDate(normalizedDate);
 
   cashBook.openingBalance = Number(openingBalance);
-  cashBook.closingBalance = cashBook.openingBalance + cashBook.cashIn - cashBook.cashOut;
+  cashBook.closingBalance = closing(cashBook);
   await cashBook.save();
   await recalculateBalancesFrom(normalizedDate, null, true);
 
@@ -187,7 +193,7 @@ const getCashBookListService = async (query) => {
   if (from || to) {
     filter.date = {};
     if (from) filter.date.$gte = normalizeDate(from);
-    if (to) filter.date.$lte = normalizeDate(to);
+    if (to) filter.date.$lt = new Date(normalizeDate(to).getTime()+86400000);
   }
 
   return await CashBook.find(filter).sort({ date: -1 });

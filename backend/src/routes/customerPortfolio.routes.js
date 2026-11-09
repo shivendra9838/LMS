@@ -1,0 +1,22 @@
+const router=require('express').Router();
+const {authenticate}=require('../middlewares/auth.middleware');
+const {authorizeRoles}=require('../middlewares/role.middleware');
+const service=require('../services/customerPortfolio.service');
+router.use(authenticate,authorizeRoles('ADMIN'));
+const run=fn=>async(req,res,next)=>{try{res.set('Cache-Control','no-store');res.json({success:true,...await fn(req)});}catch(error){next(error);}};
+router.get('/',run(req=>service.directory(req.query,req.user)));
+router.get('/employees/options',run(req=>service.employeeOptions(req.query,req.user)));
+router.get('/employees/:employeeId',run(req=>service.customers(req.query,req.user,req.params.employeeId)));
+router.get('/customers',run(req=>service.customers(req.query,req.user)));
+router.get('/customers/:id',run(async req=>({data:await service.detail(req.params.id,req.user)})));
+router.get('/customers/:id/loans',run(req=>service.loans(req.params.id,req.query,req.user)));
+router.get('/customers/:id/payments',run(req=>service.payments(req.params.id,req.query,req.user)));
+router.get('/customers/:id/history',run(req=>service.history(req.params.id,req.query,req.user)));
+router.get('/customers/:id/installments',run(async req=>{
+ await require('../services/settlement.service').authorize(req.user,true);await service.requireCustomer(req.params.id);
+ const p=service.pageInfo(req.query),scope=req.query.scope||'ALL';if(!['ALL','TODAY','OVERDUE','UPCOMING','PAID','ADVANCE'].includes(scope))throw require('../services/settlement.service').error(422,'Choose a supported installment scope');
+ const result=await require('../repositories/collection.repository').getInstallments(undefined,['PAID','ADVANCE'].includes(scope)?'ALL':scope,undefined,{customerId:req.params.id,skip:p.skip,limit:p.limit,paidState:scope});
+ return {rows:await require('../services/customerPaymentReview.service').decorate(result.rows),remainingAmount:result.remainingAmount,meta:{total:result.total,page:p.page,limit:p.limit,totalPages:Math.ceil(result.total/p.limit)}};
+}));
+router.patch('/customers/:id/assignment',run(async req=>({data:await service.reassign(req.params.id,req.body,req.user)})));
+module.exports=router;

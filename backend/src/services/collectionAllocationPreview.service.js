@@ -1,0 +1,30 @@
+const mongoose=require('mongoose');
+const Schedule=require('../models/LoanSchedule'),Loan=require('../models/Loan');
+const finance=require('./settlement.service');
+const {minor,legacyMinor,major}=require('../utils/money');
+const {assertSequence,unpaidExpression}=require('../utils/installmentSequence');
+// Informational quote only. The transaction repeats eligibility/sequence checks at save time.
+module.exports=async function preview(scheduleId,amount,user,paymentDate){
+ await finance.authorize(user);
+ if(typeof scheduleId!=='string'||!mongoose.isValidObjectId(scheduleId))throw finance.error(422,'Invalid installment identifier');
+ const schedule=await Schedule.findById(scheduleId).lean();
+ if(!schedule)throw finance.error(404,'Installment not found');
+ const loan=await Loan.findById(schedule.loanId).select('employeeId status remainingAmount paidAmount totalPayable loanDate').lean();
+ if(!loan)throw finance.error(404,'Loan not found');
+ if(user.role==='EMPLOYEE'&&String(loan.employeeId)!==user.id)throw finance.error(403,'Unauthorized to collect for this loan');
+ if(!require('./overdue.service').OPEN_STATUSES.includes(loan.status))throw finance.error(400,'Cannot record collection on a non-active loan');
+ if(legacyMinor(schedule.paidAmount)>=legacyMinor(schedule.amount))throw finance.error(400,'This schedule is already fully paid');
+ await assertSequence(schedule);
+ if(legacyMinor(loan.totalPayable)-legacyMinor(loan.paidAmount)!==legacyMinor(loan.remainingAmount))throw finance.error(409,'Loan balances need Admin review before receiving more money');
+ const rows=await Schedule.find({loanId:loan._id,dayNumber:{$gte:schedule.dayNumber},$expr:unpaidExpression()}).sort({dayNumber:1}).select('_id dayNumber date amount paidAmount').lean();
+ if(!rows.length||String(rows[0]._id)!==String(schedule._id))throw finance.error(409,'Installment balances changed. Refresh the collection list and try again.');
+ const date=require('../utils/paymentDate').resolvePaymentDate(paymentDate);
+ const {businessDay}=require('../utils/businessDay');
+ if(businessDay(date)<businessDay(loan.loanDate))throw finance.error(422,'Payment cannot precede the actual loan issue date');
+ const minimum=require('../utils/minimumPayment').minimumPayment(rows,date);
+ const received=minor(amount===undefined?Math.max(minimum.minimumPayment,major(legacyMinor(rows[0].amount)-legacyMinor(rows[0].paidAmount))):amount);
+ if(received>legacyMinor(loan.remainingAmount))throw finance.error(422,'Payment exceeds the total outstanding loan balance');
+ const allocation=require('../utils/collectionAllocation').plan(rows,received);
+ const dues=rows.filter(row=>businessDay(row.date)<=minimum.effectiveDay),remaining=row=>legacyMinor(row.amount)-legacyMinor(row.paidAmount);
+ return {loanOutstanding:loan.remainingAmount,minimum,meetsMinimum:received>=legacyMinor(minimum.minimumPayment),recovery:{previousOverdue:minimum.previousOverdue,todayUnpaid:minimum.todayUnpaid,totalCollectible:minimum.minimumPayment},outstandingDues:dues.map(row=>({scheduleId:row._id,dayNumber:row.dayNumber,dueDate:row.date,outstanding:major(remaining(row)),allocation:major(allocation.allocations.find(a=>String(a.scheduleId)===String(row._id))?.amountMinor||0)})),amount:major(received),totalAllocated:major(allocation.totalAllocatedMinor),unallocatedAmount:0,nextInstallment:allocation.nextInstallment,allocations:allocation.allocations.map(a=>({scheduleId:a.scheduleId,dayNumber:a.dayNumber,dueDate:a.dueDate,amount:major(a.amountMinor),remainingAfter:major(a.remainingMinor)})),informational:true,policy:'Oldest unpaid installment first. Excess automatically reduces the next unpaid installment, including partial advance amounts. Rechecked on save; unsupported loan overpayments are rejected.'};
+};

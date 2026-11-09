@@ -16,4 +16,5 @@ const customerTimelineSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
+customerTimelineSchema.index({customerId:1,createdAt:-1},{name:'portfolio_customer_timeline'});
 module.exports = mongoose.model('CustomerTimeline', customerTimelineSchema);

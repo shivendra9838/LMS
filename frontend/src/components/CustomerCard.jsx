@@ -1,3 +1,4 @@
+import {CustomerPhotoEditor} from './CustomerPhoto';
 import { User, Phone, MapPin, Briefcase, FileText } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 
@@ -7,12 +8,10 @@ const CustomerCard = ({ customer, onEdit }) => {
   return (
     <div className="space-y-6">
       <div className="glass-panel p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-2xl font-bold">
-            {customer.name.charAt(0)}
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{customer.name}</h1>
+        <div className="flex items-center gap-3 min-w-0">
+          <CustomerPhotoEditor customer={customer}/>
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 break-words">{customer.name}</h1>
             <p className="text-gray-500 font-medium">{customer.customerCode}</p>
           </div>
         </div>

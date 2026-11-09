@@ -15,7 +15,7 @@ const app = express();
 // ==========================================
 app.use(helmet()); // Security headers
 app.use(cors()); // Cross-Origin Resource Sharing
-app.use(compression()); // Compress response bodies
+app.use(compression({filter:(req,res)=>req.originalUrl.split('?')[0]==='/api/v1/notifications/stream'?false:compression.filter(req,res)})); // Compress response bodies
 app.use(morgan('dev')); // HTTP request logger
 app.use(express.json()); // Parse JSON bodies
 app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
@@ -43,6 +43,7 @@ const branchRoutes = require('./routes/branch.routes');
 const cashBookRoutes = require('./routes/cashBook.routes');
 const systemHealthRoutes = require('./routes/systemHealth.routes');
 const expenseRoutes = require('./routes/expense.routes');
+const customerLeadRoutes = require('./routes/customerLead.routes');
 
 const apiV1Prefix = '/api/v1';
 
@@ -51,9 +52,14 @@ app.use(`${apiV1Prefix}/auth`, authRoutes);
 app.use(`${apiV1Prefix}/admin`, adminRoutes);
 app.use(`${apiV1Prefix}/employees`, employeeRoutes);
 app.use(`${apiV1Prefix}/customers`, customerRoutes);
+app.use(`${apiV1Prefix}/customers`, require('./routes/customerPhoto.routes'));
+app.use(`${apiV1Prefix}/customer-risk`, require('./routes/customerRisk.routes'));
+app.use(`${apiV1Prefix}/customer-portfolios`, require('./routes/customerPortfolio.routes'));
+app.use(`${apiV1Prefix}/settings`, require('./routes/settings.routes'));
 app.use(`${apiV1Prefix}/loans`, loanRoutes);
 app.use(`${apiV1Prefix}/dashboard`, dashboardRoutes);
 app.use(`${apiV1Prefix}/collections`, collectionRoutes);
+app.use(`${apiV1Prefix}/follow-ups`, require('./routes/followUp.routes'));
 app.use(`${apiV1Prefix}/notifications`, notificationRoutes);
 app.use(`${apiV1Prefix}/reports`, reportRoutes);
 app.use(`${apiV1Prefix}/audit-logs`, auditLogRoutes);
@@ -62,6 +68,9 @@ app.use(`${apiV1Prefix}/branches`, branchRoutes);
 app.use(`${apiV1Prefix}/cash-book`, cashBookRoutes);
 app.use(`${apiV1Prefix}/system-health`, systemHealthRoutes);
 app.use(`${apiV1Prefix}/expenses`, expenseRoutes);
+app.use(`${apiV1Prefix}/customer-leads`, customerLeadRoutes);
+app.use(`${apiV1Prefix}/kyc`, require('./routes/kyc.routes'));
+app.use(`${apiV1Prefix}/settlements`, require('./routes/settlement.routes'));
 
 if (process.env.ENABLE_TEST_ROUTES === 'true') {
   app.get(`${apiV1Prefix}/test-error`, () => {

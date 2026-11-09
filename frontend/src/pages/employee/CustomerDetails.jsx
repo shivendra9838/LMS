@@ -1,109 +1,42 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Clock } from 'lucide-react';
-import toast from 'react-hot-toast';
-import api from '../../services/api';
-import CustomerCard from '../../components/CustomerCard';
+import LoadingIndicator from "../../components/ui/Loading";
+import CustomerProfileHeader from '../../components/customers/CustomerProfileHeader';
+import {CustomerOverview} from '../../components/customers/CustomerDetailSections';
+import {useEffect,useRef,useState} from 'react';
+import {Link,useParams} from 'react-router-dom';
+import {ArrowLeft,User,MapPin,FileText,Clock,Pencil,Plus,RefreshCw,CheckCircle2} from 'lucide-react';
+import {SettlementPanel} from '../../components/settlements/SettlementPresentation';
 
-const CustomerDetails = () => {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const [customer, setCustomer] = useState(null);
-  const [timeline, setTimeline] = useState([]);
-  const [loading, setLoading] = useState(true);
+import {useCollectionRead,useCollectionRefresh} from '../../hooks/useCollectionRefresh';
+import '../../components/loans/loans.css';
+import '../../components/settlements/daily-settlement.css';
+import './customer-details.css';
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [cusRes, timeRes] = await Promise.all([
-          api.get(`/customers/${id}`),
-          api.get(`/customers/${id}/timeline`)
-        ]);
-        setCustomer(cusRes.data.data);
-        setTimeline(timeRes.data.data);
-      } catch (error) {
-        toast.error('Failed to load customer details');
-        navigate('/employee/customers');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, [id, navigate]);
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
-
-  if (!customer) return null;
-
-  return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Customer Details</h1>
-        <div className="space-x-3">
-          {customer.status === 'ACTIVE' && (
-            <button
-              onClick={() => navigate(`/employee/customers/${customer._id}/loans/new`)}
-              className="bg-emerald-600 text-white px-4 py-2 rounded-md hover:bg-emerald-700 transition-colors font-medium shadow-sm"
-            >
-              + Issue Loan
-            </button>
-          )}
-          <button
-            onClick={() => navigate(`/employee/customers/${customer._id}/edit`)}
-            className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors shadow-sm"
-          >
-            Edit Customer
-          </button>
-        </div>
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <CustomerCard 
-            customer={customer} 
-            onEdit={() => navigate(`/employee/customers/${customer._id}/edit`)} 
-          />
-        </div>
-
-        {/* Timeline Column */}
-        <div className="glass-panel p-6 h-fit">
-          <div className="flex items-center gap-2 border-b border-gray-100 pb-3 mb-4">
-            <Clock className="text-blue-500" size={20} />
-            <h2 className="text-lg font-semibold text-gray-800">Timeline</h2>
-          </div>
-          
-          <div className="relative border-l border-gray-200 ml-3 space-y-6">
-            {timeline.length === 0 ? (
-              <p className="text-sm text-gray-500 pl-4">No events found.</p>
-            ) : (
-              timeline.map((event) => (
-                <div key={event._id} className="relative pl-6">
-                  {/* Timeline dot */}
-                  <div className="absolute -left-1.5 mt-1.5 w-3 h-3 rounded-full bg-blue-500 ring-4 ring-white"></div>
-                  
-                  <div className="flex flex-col">
-                    <span className="text-sm font-semibold text-gray-900">{event.action}</span>
-                    <span className="text-sm text-gray-600 mt-0.5">{event.details}</span>
-                    <span className="text-xs text-gray-400 mt-1">
-                      {new Date(event.createdAt).toLocaleDateString('en-IN', {
-                        day: 'numeric', month: 'short', year: 'numeric',
-                        hour: '2-digit', minute: '2-digit'
-                      })}
-                    </span>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default CustomerDetails;
+export const maskCustomerIdentity=value=>{const text=String(value||'').trim();if(!text)return 'Not provided';return text.length>4?'********'+text.slice(-4):'********';};
+const recorded=value=>value?new Date(value).toLocaleString('en-IN',{timeZone:'Asia/Kolkata',day:'numeric',month:'short',year:'numeric',hour:'numeric',minute:'2-digit'})+' IST':'Timestamp unavailable';
+const present=value=>value===undefined||value===null||value===''?'Not provided':value;
+function Actions({customer}){return <><Link className="cd-button" to={`/employee/customers/${customer._id}/kyc`}><FileText size={16}/><span className="cd-full-label">View / Complete KYC</span><span className="cd-short-label">KYC</span></Link>{customer.status==='ACTIVE'&&<Link className="cd-button cd-primary" to={`/employee/customers/${customer._id}/loans/new`}><Plus size={17}/>Issue Loan</Link>}<Link className="cd-button" to={`/employee/customers/${customer._id}/${customer.kycLeadId?'kyc':'edit'}`}><RefreshCw size={16}/><span className="cd-full-label">{customer.kycLeadId?'View / Revise KYC':'Edit Customer'}</span><span className="cd-short-label">{customer.kycLeadId?'Revise KYC':'Edit'}</span></Link></>;}
+function Fields({rows}){return <dl className="cd-fields">{rows.map(([label,value])=><div key={label}><dt>{label}</dt><dd>{present(value)}</dd></div>)}</dl>;}
+export function CustomerDetailsView({customer,timeline=[],timelineLoading=false,timelineError='',retryTimeline}){
+ const summary=customer.financialSummary,profile={...customer,...summary},edit=`/employee/customers/${customer._id}/${customer.kycLeadId?'kyc':'edit'}`;
+ return <div className="customer-detail-page customer-profile-page customer-profile-employee"><div className="cp-back"><Link className="cd-back" to="/employee/customers"><ArrowLeft size={18}/>Back to My Customers</Link><span>Customer Details</span></div>
+ <CustomerProfileHeader customer={profile} employee={customer.employeeId} onRefresh={retryTimeline} actions={<><Link className="cd-button" to={edit}><Pencil size={15}/>Edit Profile</Link><Actions customer={customer}/></>}/>
+ {!summary&&<p className="cd-help">Unavailable: customer financial summary could not be loaded.</p>}
+ <CustomerOverview customer={{...customer,...summary}}/>
+ <div className="cd-content"><div className="cd-information"><SettlementPanel title="Personal Information" Icon={User} mobileCollapse><Fields rows={[["Father’s name",customer.fatherName],['Age & gender',[customer.age!=null?customer.age+' years':null,customer.gender].filter(Boolean).join(', ')],['Occupation',customer.occupation],...(customer.dob?[['Date of birth',new Date(customer.dob).toLocaleDateString('en-IN',{timeZone:'Asia/Kolkata'})]]:[]),...(customer.nationality?[['Nationality',customer.nationality]]:[]),...(customer.maritalStatus?[['Marital status',customer.maritalStatus]]:[]),['Assigned employee',customer.employeeId?.name],...(customer.branchId?.name?[['Branch',customer.branchId.name]]:[]) ]}/></SettlementPanel>
+ <SettlementPanel title="Contact & Address" Icon={MapPin} mobileCollapse><Fields rows={[["Mobile",customer.mobile],...(customer.alternateMobile?[['Alternate mobile',customer.alternateMobile]]:[]),...(customer.email?[['Email',customer.email]]:[]),['Full address',customer.address],['Area / city',[customer.area,customer.city].filter(Boolean).join(', ')],...(customer.district?[['District',customer.district]]:[]),...(customer.state?[['State',customer.state]]:[]),...(customer.pin?[['PIN code',customer.pin]]:[]),...(customer.landmark?[['Landmark',customer.landmark]]:[])]}/></SettlementPanel>
+ <SettlementPanel title="Identity Proof" Icon={FileText} mobileCollapse><Fields rows={[["Document type",customer.idProofType],['Identity number',maskCustomerIdentity(customer.idProofNumber)]]}/><Link className="cd-text-link" to={`/employee/customers/${customer._id}/kyc`}>View authorized KYC documents</Link><p className="cd-help">Identity numbers are masked. Documents use the existing protected KYC viewer.</p></SettlementPanel></div>
+ <aside className="cd-timeline"><SettlementPanel title="Timeline" Icon={Clock} mobileCollapse>{timelineLoading?<LoadingIndicator message={"Loading recorded events…"}/>:timelineError?<div role="alert"><p>{timelineError}</p><button className="cd-button" onClick={retryTimeline}>Retry timeline</button></div>:timeline.length?<ol>{timeline.map(event=><li key={event._id}><span className="cd-event-icon"><CheckCircle2 size={18}/></span><div><h3>{event.action}</h3>{event.details&&<p>{event.details}</p>}<time dateTime={event.createdAt}>{recorded(event.createdAt)}</time></div></li>)}</ol>:<p className="cd-help">No recorded timeline events are available.</p>}</SettlementPanel></aside></div></div>;
+}
+export default function CustomerDetails(){
+ const {id}=useParams(),[retry,setRetry]=useState(0),[revision]=useCollectionRefresh('EMPLOYEE');
+ const profile=useCollectionRead(`/customers/${id}`,revision+retry),timeline=useCollectionRead(`/customers/${id}/timeline`,revision+retry),cached=useRef({id:null,data:null});
+ // Keep an open photo stable during background refresh, but never reuse a
+ // different customer's data or retain the view after an authorization error.
+ if(profile.data?.data)cached.current={id,data:profile.data.data};
+ const customer=profile.data?.data||(cached.current.id===id?cached.current.data:null);
+ useEffect(()=>{const changed=event=>{if(String(event.detail?.customerId)===id)setRetry(value=>value+1);};window.addEventListener('royal:customer-photo',changed);return()=>window.removeEventListener('royal:customer-photo',changed);},[id]);
+ if(profile.loading&&!customer)return <LoadingIndicator message={"Loading customer details…"} className="re-loans cd-load"/>;
+ if(profile.error)return <div className="re-loans cd-load" role="alert"><p>{profile.error}</p><button className="rl-button" onClick={()=>setRetry(value=>value+1)}>Retry customer details</button><Link className="rl-button" to="/employee/customers">Back to My Customers</Link></div>;
+ if(!customer)return <div className="re-loans cd-load">Customer details are unavailable.</div>;
+ return <CustomerDetailsView customer={customer} timeline={timeline.data?.data||[]} timelineLoading={timeline.loading&&!timeline.data} timelineError={timeline.error} retryTimeline={()=>setRetry(value=>value+1)}/>;
+}

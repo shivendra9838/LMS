@@ -1,0 +1,16 @@
+import test,{before,after} from 'node:test';
+import assert from 'node:assert/strict';
+import React from 'react';
+import {URLSearchParams} from 'node:url';
+import {renderToStaticMarkup} from 'react-dom/server';
+import {MemoryRouter} from 'react-router-dom';
+import {createServer} from 'vite';
+let vite,ui;
+before(async()=>{vite=await createServer({cacheDir:'node_modules/.vite-tests/admin-customer-directory',server:{middlewareMode:true,hmr:false,ws:false},optimizeDeps:{noDiscovery:true,include:[]},appType:'custom'});ui=await vite.ssrLoadModule('/src/pages/admin/Customers.jsx');});
+after(async()=>vite?.close());
+const render=(component,props)=>renderToStaticMarkup(React.createElement(MemoryRouter,null,React.createElement(component,props)));
+const row={_id:'synthetic-employee',name:'Synthetic Employee',employeeCode:'EMP-QA',status:'ACTIVE',city:'Test city',area:'Test area',customerCount:2,activeLoanCustomers:1,activeLoanCount:2,overdueCustomers:1,totalOutstanding:1090.02};
+test('six global metrics use provided values and never infer missing totals from a page',()=>{const html=render(ui.DirectorySummary,{summary:{totalEmployees:42,activeEmployees:40,inactiveEmployees:2,totalCustomers:108,customersWithActiveLoans:70,totalOutstanding:123456.78}});for(const value of ['Total Employees','Active Employees','Inactive Employees','Total Customers','Customers With Active Loans','Total Outstanding','₹1,23,456.78'])assert.ok(html.includes(value));assert.equal((html.match(/<dt>/g)||[]).length,6);assert.match(render(ui.DirectorySummary,{}),/—/);});
+test('table has one row per employee and uses actual active loan count rather than active-loan customers',()=>{const html=render(ui.DirectoryRows,{rows:[row],offset:20});assert.equal((html.match(/<tbody><tr/g)||[]).length,1);assert.match(html,/<td>21<\/td>/);assert.match(html,/<td>2<\/td><td>2<\/td><td>1<\/td>/);assert.match(html,/₹1,090.02/);assert.match(html,/\/admin\/customers\/employees\/synthetic-employee/);assert.doesNotMatch(html,/acdir-mobile-row/);});
+test('mobile employee row is one accessible existing portfolio link without a nested photo button',()=>{const html=render(ui.DirectoryRows,{rows:[row],mobile:true});assert.equal((html.match(/class="acdir-mobile-row"/g)||[]).length,1);assert.match(html,/View customers of Synthetic Employee/);assert.match(html,/EMP-QA/);assert.match(html,/ACTIVE/);assert.doesNotMatch(html,/<table|<button/);});
+test('applying filters resets page but retains page size, supported server sorting and branch/status',()=>{const query=ui.customerDirectoryQuery(new URLSearchParams('page=5&limit=50&search=old'),{search:'  Synthetic ',branchId:'branch',status:'INACTIVE',sort:'outstandingMinor',direction:'desc'});assert.equal(query.get('page'),null);assert.equal(query.get('limit'),'50');assert.equal(query.get('search'),'Synthetic');assert.equal(query.get('sort'),'outstandingMinor');assert.equal(query.get('status'),'INACTIVE');assert.equal(query.get('branchId'),'branch');assert.deepEqual(ui.directoryFilters(new URLSearchParams()),{search:'',branchId:'',status:'',sort:'name',direction:'asc'});});

@@ -1,6 +1,8 @@
 const mongoose = require('mongoose');
 
 const adminSchema = new mongoose.Schema({
+  authVersion: {type:Number,default:0,select:false},
+  address: {type:String,maxlength:500},
   name: {
     type: String,
     required: true,

@@ -1,0 +1,10 @@
+const router=require('express').Router();
+const {authenticate}=require('../middlewares/auth.middleware');
+const {authorizeRoles}=require('../middlewares/role.middleware');
+const risk=require('../services/customerRisk.service');
+router.use(authenticate,authorizeRoles('ADMIN','EMPLOYEE'));
+const run=fn=>async(req,res,next)=>{try{res.set('Cache-Control','no-store');res.json({success:true,data:await fn(req)});}catch(error){next(error);}};
+router.get('/',run(req=>risk.list(req.query,req.user)));
+router.get('/batch',run(req=>risk.batch(req.query.ids,req.user)));
+router.get('/:id',run(req=>risk.detail(req.params.id,req.user)));
+module.exports=router;

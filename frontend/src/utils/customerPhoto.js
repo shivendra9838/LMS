@@ -1,0 +1,5 @@
+export const PHOTO_LIMIT=5*1024*1024;
+export function validateCustomerPhotoFile(file){if(!file||!['image/jpeg','image/png','image/webp'].includes(file.type)||!(/\.(jpe?g|png|webp)$/i.test(file.name)))return 'Choose a JPG, PNG or WebP image.';if(file.size>PHOTO_LIMIT)return 'Choose an image up to 5 MB.';return '';}
+export function cropPreviewStyle(width,height,{x,y,zoom}){const side=Math.max(1,Math.floor(Math.min(width,height)/zoom));return {width:`${width/side*100}%`,height:`${height/side*100}%`,left:`${-(width/side-1)*x*100}%`,top:`${-(height/side-1)*y*100}%`};}
+export const interactiveCustomerTarget=target=>Boolean(target?.closest?.('a,button,input,select,textarea,label,summary,dialog,[role="dialog"],[role="button"]'));
+export function customerRowProps(customer,basePath,navigate){const open=()=>navigate(`${basePath}/${customer._id}`);return {tabIndex:0,className:'customer-click-row', 'aria-label':`Open ${customer.name} customer details`,onClick:event=>{if(!interactiveCustomerTarget(event.target))open();},onKeyDown:event=>{if(event.target===event.currentTarget&&['Enter',' '].includes(event.key)){event.preventDefault();open();}}};}

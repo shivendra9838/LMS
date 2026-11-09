@@ -1,5 +1,6 @@
 const request = require('supertest');
 const { generateToken } = require('../../src/utils/jwt');
+jest.mock('../../src/models/Admin',()=>({findById:jest.fn(()=>({select:jest.fn().mockResolvedValue({isActive:true,authVersion:0})}))}));
 
 jest.mock('../../src/services/auth.service', () => ({
   loginService: jest.fn()
@@ -110,7 +111,8 @@ describe('API Integration Tests', () => {
         mobile: '9876543210',
         age: 30,
         occupation: 'Business',
-        address: 'Address'
+        address: 'Address',
+        employeeId: '507f1f77bcf86cd799439015'
       });
 
     expect(res.status).toBe(201);

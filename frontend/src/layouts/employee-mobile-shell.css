@@ -1,0 +1,22 @@
+/* Shared Employee mobile chrome only. Desktop and Admin layouts are unaffected. */
+@media(max-width:1023px){
+ .employee-mobile-shell.portal-shell .portal-header{height:68px;min-height:68px;padding:0 12px;background:#030e13;border-color:#16292f;color:#eef4f6;gap:0;isolation:isolate}
+ .employee-mobile-shell.portal-shell .portal-header>div:first-child{position:absolute;left:50%;transform:translateX(-50%);max-width:calc(100% - 116px)}
+ .employee-mobile-shell.portal-shell .portal-header .employee-mobile-brand{gap:6px!important;max-width:100%;justify-content:center}
+ .employee-mobile-shell.portal-shell .employee-mobile-brand>span:first-child{width:34px;height:34px;padding:3px;background:transparent;box-shadow:none}
+ .employee-mobile-shell.portal-shell .employee-mobile-brand>span:last-child{display:block!important;min-width:0}
+ .employee-mobile-shell.portal-shell .employee-mobile-brand>span:last-child>span:first-child{font-family:inherit;font-size:11px;font-weight:700;color:#f0c55a;letter-spacing:0;line-height:1.4}
+ .employee-mobile-shell.portal-shell .employee-mobile-brand>span:last-child>span:last-child{font-size:9px;color:#d2d9d9;line-height:1.3}
+ .employee-mobile-shell.portal-shell .portal-header .header-business,.employee-mobile-shell.portal-shell .portal-header .profile-menu{display:none}
+ .employee-mobile-shell.portal-shell .portal-header .header-actions{margin:0;position:static;gap:0}
+ .employee-mobile-shell.portal-shell .portal-header .header-actions>button[aria-controls=portal-navigation]{position:absolute;left:8px;top:12px;min-width:44px;min-height:44px;border:0;background:transparent;color:#f0f5f6}
+ .employee-mobile-shell.portal-shell .portal-header .notification-bell{position:absolute;right:10px;top:12px}
+ .employee-mobile-shell.portal-shell .portal-header .notification-trigger{min-width:44px;min-height:44px;background:transparent;color:#f0f5f6;border:0}
+ .employee-mobile-shell.portal-shell .notification-count{background:#e62335;color:#fff;top:0;right:0;font-size:9px;min-width:16px;height:16px}
+ .employee-mobile-shell.portal-shell .notification-inbox{top:72px}
+ .employee-mobile-shell.portal-shell .mobile-work-nav{background:#051219;color:#d3e0e4;border-color:#1b3038;padding-bottom:env(safe-area-inset-bottom)}
+ .employee-mobile-shell.portal-shell .mobile-work-nav a.is-active{color:#f1c257;background:#9f791923}
+ .employee-mobile-shell.portal-shell .portal-sidebar{background:#041116;color:#edf5f6}
+}
+@media(max-width:359px){.employee-mobile-shell.portal-shell .employee-mobile-brand>span:first-child{width:29px}.employee-mobile-shell.portal-shell .employee-mobile-brand>span:last-child>span:first-child{font-size:10px}.employee-mobile-shell.portal-shell .employee-mobile-brand>span:last-child>span:last-child{font-size:8px}}
+

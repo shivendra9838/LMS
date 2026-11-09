@@ -1,113 +1,26 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
-import api from '../../services/api';
-
-import CustomerTable from '../../components/CustomerTable';
-import Pagination from '../../components/Pagination';
-import SearchBar from '../../components/SearchBar';
-import FilterBar from '../../components/FilterBar';
-
-const Customers = () => {
-  const navigate = useNavigate();
-  const [customers, setCustomers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [search, setSearch] = useState('');
-  const [searchInput, setSearchInput] = useState('');
-  
-  const [showFilters, setShowFilters] = useState(false);
-  const [filters, setFilters] = useState({
-    status: '',
-    city: '',
-    area: '',
-    employee: ''
-  });
-
-  const fetchCustomers = async () => {
-    try {
-      setLoading(true);
-      let query = `/customers?page=${page}&limit=10`;
-      if (search) query += `&search=${search}`;
-      if (filters.status) query += `&status=${filters.status}`;
-      if (filters.city) query += `&city=${filters.city}`;
-      if (filters.area) query += `&area=${filters.area}`;
-      if (filters.employee) query += `&employee=${filters.employee}`;
-
-      const res = await api.get(query);
-      setCustomers(res.data.data);
-      setTotalPages(res.data.meta.totalPages);
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to fetch customers');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchCustomers();
-  }, [page, search, filters]);
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    setSearch(searchInput);
-    setPage(1);
-  };
-
-  const handleFilterChange = (e) => {
-    setFilters({ ...filters, [e.target.name]: e.target.value });
-    setPage(1);
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">All Customers</h1>
-          <p className="text-sm text-gray-500 mt-1">Enterprise-wide customer oversight and auditing</p>
-        </div>
-      </div>
-
-      <div className="glass-panel">
-        <SearchBar 
-          searchInput={searchInput} 
-          setSearchInput={setSearchInput} 
-          handleSearch={handleSearch} 
-          showFilters={showFilters} 
-          setShowFilters={setShowFilters} 
-        />
-        
-        {showFilters && (
-          <FilterBar 
-            filters={filters} 
-            handleFilterChange={handleFilterChange} 
-            isAdmin={true} 
-          />
-        )}
-
-        <div className="overflow-x-auto min-h-[400px]">
-          <CustomerTable 
-            customers={customers} 
-            loading={loading} 
-            refresh={fetchCustomers}
-            basePath="/admin/customers"
-          />
-        </div>
-        
-        {totalPages > 1 && (
-          <div className="p-4 border-t border-gray-100 bg-gray-50/30">
-            <Pagination 
-              currentPage={page} 
-              totalPages={totalPages} 
-              onPageChange={setPage} 
-            />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-export default Customers;
+import {useState,useEffect,useRef} from 'react';
+import {Users,UserCheck,UserX,Wallet,IndianRupee,Search,Filter,RotateCcw,ArrowRight,ChevronDown} from 'lucide-react';
+import {Link,useSearchParams} from 'react-router-dom';
+import EmployeeAvatar from '../../components/EmployeeAvatar';
+import {EmployeeStatus} from '../../components/employees/EmployeeUi';
+import {useRead,LoadState,money} from '../../components/portfolios/PortfolioUi';
+import './customers-directory.css';
+export const directoryFilters=params=>({search:params.get('search')||'',branchId:params.get('branchId')||'',status:params.get('status')||'',sort:params.get('sort')||'name',direction:params.get('direction')||'asc'});
+export function customerDirectoryQuery(params,form){const next=new URLSearchParams(params);for(const [key,value] of Object.entries(form)){if(value.trim())next.set(key,value.trim());else next.delete(key);}next.delete('page');return next;}
+const number=value=>value==null?'—':Number(value).toLocaleString('en-IN');
+export function DirectorySummary({summary}){return <dl className="acdir-summary" aria-label="Portfolio summary">{[['Total Employees',summary?.totalEmployees,Users],['Active Employees',summary?.activeEmployees,UserCheck],['Inactive Employees',summary?.inactiveEmployees,UserX],['Total Customers',summary?.totalCustomers,Users],['Customers With Active Loans',summary?.customersWithActiveLoans,Wallet],['Total Outstanding',summary?.totalOutstanding,IndianRupee]].map(([label,value,Icon],i)=><div key={label}><Icon size={23} aria-hidden="true"/><div><dt>{label}</dt><dd>{value==null?'—':i===5?money(value):number(value)}</dd></div></div>)}</dl>;}
+const location=employee=>[employee.branchName||employee.city,employee.area].filter(Boolean).join(' · ')||'Not recorded';
+const portfolio=employee=>'/admin/customers/employees/'+employee._id;
+export function DirectoryRows({rows,offset=0,mobile=false}){return <>{!mobile&&<div className="acdir-table"><table><thead><tr>{['#','Employee','Employee Code','Branch / Location','Assigned Customers','Active Loans','Overdue Customers','Total Outstanding','Employee Status','Actions'].map(label=><th key={label} scope="col">{label}</th>)}</tr></thead><tbody>{rows.map((employee,index)=><tr key={employee._id}><td>{offset+index+1}</td><td><div className="acdir-identity"><EmployeeAvatar employeeId={employee._id} name={employee.name} hasPhoto={employee.hasPhoto} size={34} preview/><Link to={portfolio(employee)}>{employee.name}</Link></div></td><td>{employee.employeeCode}</td><td>{location(employee)}</td><td>{number(employee.customerCount)}</td><td>{number(employee.activeLoanCount)}</td><td>{number(employee.overdueCustomers)}</td><td className="acdir-amount">{employee.totalOutstanding==null?'—':money(employee.totalOutstanding)}</td><td><EmployeeStatus status={employee.status}/></td><td><Link className="acdir-view" to={portfolio(employee)}>View Customers<ArrowRight size={14}/></Link></td></tr>)}</tbody></table></div>}{mobile&&<div className="acdir-mobile-list">{rows.map(employee=><Link className="acdir-mobile-row" key={employee._id} to={portfolio(employee)} aria-label={'View customers of '+employee.name}><EmployeeAvatar employeeId={employee._id} name={employee.name} hasPhoto={employee.hasPhoto} size={38}/><span className="acdir-mobile-name"><strong>{employee.name}</strong><small>{employee.employeeCode}</small></span><EmployeeStatus status={employee.status}/><ArrowRight size={16} aria-hidden="true"/></Link>)}</div>}</>;}
+export default function Customers(){
+ const [params,setParams]=useSearchParams(),query=params.toString(),[form,setForm]=useState(()=>directoryFilters(params)),[revision,setRevision]=useState(0),[mobile,setMobile]=useState(()=>typeof window!=='undefined'&&window.matchMedia('(max-width:767px)').matches),filters=useRef(null);
+ const {loading,error,data}=useRead('/customer-portfolios?'+query,revision);
+ useEffect(()=>setForm(directoryFilters(new URLSearchParams(query))),[query]);
+ useEffect(()=>{const media=window.matchMedia('(min-width:768px)'),update=()=>{if(filters.current)filters.current.open=media.matches;setMobile(!media.matches);};update();media.addEventListener('change',update);return()=>media.removeEventListener('change',update);},[]);
+ const change=(key,value)=>setForm(previous=>({...previous,[key]:value})),reset=()=>{const next=new URLSearchParams();if(params.has('limit'))next.set('limit',params.get('limit'));setForm(directoryFilters(next));setParams(next);},meta=data?.meta,page=meta?.page||Number(params.get('page')||1),limit=meta?.limit||20;
+ return <div className="acdir-page"><header className="acdir-heading"><Users size={29} aria-hidden="true"/><div><h1>Customers</h1><p>Manage employees and their assigned customers, loans and portfolio performance.</p></div></header><DirectorySummary summary={data?.summary}/>
+ <form className="acdir-filters" aria-label="Employee directory filters" onSubmit={e=>{e.preventDefault();setParams(customerDirectoryQuery(params,form));}}><label className="acdir-search"><Search size={17}/><input type="search" aria-label="Search employees" placeholder="Search employee by name, code or mobile…" maxLength={100} value={form.search} onChange={e=>change('search',e.target.value)}/></label><details ref={filters} className="acdir-filter-details"><summary><Filter size={15}/>Filters &amp; Sorting<ChevronDown size={16}/></summary><div>{[['branchId','Branch',[['','All branches'],...(data?.branches||[]).map(branch=>[branch._id,branch.name])]],['status','Employee Status',[['','All statuses'],['ACTIVE','Active'],['INACTIVE','Inactive']]],['sort','Sort By',[['name','Name'],['customerCount','Assigned customers'],['outstandingMinor','Outstanding amount']]],['direction','Sort Order',[['asc','Ascending'],['desc','Descending']]]].map(([key,label,options])=><label key={key}>{label}<select value={form[key]} onChange={e=>change(key,e.target.value)}>{options.map(([value,text])=><option value={value} key={value}>{text}</option>)}</select></label>)}<div className="acdir-filter-actions"><button type="button" onClick={reset}><RotateCcw size={15}/>Reset</button><button className="acdir-gold"><Search size={15}/>Apply Filters</button></div></div></details></form>
+ <LoadState loading={loading} error={error} retry={()=>setRevision(n=>n+1)}/>
+ {!loading&&!error&&data&&<section aria-label="Employee directory"><DirectoryRows mobile={mobile} rows={data.rows} offset={(page-1)*limit}/>{!data.rows.length&&<p className="acdir-empty">No employees match these filters. Unassigned customers remain available below.</p>}<footer className="acdir-pagination"><p>{meta?.total?`Showing ${(page-1)*limit+1}–${Math.min(page*limit,meta.total)} of ${number(meta.total)} employees`:'0 employees'}</p><div><button disabled={page<=1} onClick={()=>setParams(previous=>{const next=new URLSearchParams(previous);next.set('page',String(page-1));return next;})}>Previous</button><span aria-current="page">{page}</span><button disabled={!meta||page>=meta.totalPages} onClick={()=>setParams(previous=>{const next=new URLSearchParams(previous);next.set('page',String(page+1));return next;})}>Next</button></div></footer></section>}
+ <nav className="acdir-shortcuts" aria-label="Customer management shortcuts">{[['requests','Customer Requests'],['add','Add Customer'],['risk','Repayment Risk & Filters'],['all','All Customers'],['unassigned','Unassigned Customers']].map(([path,label])=><Link key={path} to={'/admin/customers/'+path}>{label}<ArrowRight size={13}/></Link>)}</nav></div>;
+}

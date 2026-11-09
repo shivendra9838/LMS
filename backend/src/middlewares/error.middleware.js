@@ -1,7 +1,7 @@
 const { logError } = require('../utils/logger');
 
 const errorHandler = (err, req, res, next) => {
-  let statusCode = res.statusCode === 200 ? 500 : res.statusCode;
+  let statusCode = err.status || err.statusCode || (res.statusCode === 200 ? 500 : res.statusCode);
   let message = err.message;
 
   // Handle specific MongoDB errors if needed

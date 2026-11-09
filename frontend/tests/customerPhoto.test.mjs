@@ -1,0 +1,19 @@
+import test,{before,after} from 'node:test';
+import assert from 'node:assert/strict';
+import {createServer} from 'vite';
+import React from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+import {MemoryRouter} from 'react-router-dom';
+import {customerRowProps,validateCustomerPhotoFile,cropPreviewStyle} from '../src/utils/customerPhoto.js';
+let vite,ui;
+before(async()=>{vite=await createServer({cacheDir:'node_modules/.vite-tests/customer-photo',optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true,hmr:false,ws:false},appType:'custom'});ui=await vite.ssrLoadModule('/src/components/CustomerPhoto.jsx');});
+after(async()=>{await vite?.close();});
+const customer={_id:'synthetic-id',name:'Synthetic Customer',customerCode:'CUS-SYN',occupation:'Synthetic occupation'};
+test('row empty area, Enter and Space navigate once to the existing details route',()=>{const calls=[],p=customerRowProps(customer,'/employee/customers',url=>calls.push(url)),root={};p.onClick({target:{closest:()=>null}});for(const key of ['Enter',' '])p.onKeyDown({key,target:root,currentTarget:root,preventDefault:()=>{}});assert.deepEqual(calls,Array(3).fill('/employee/customers/synthetic-id'));assert.equal(p.tabIndex,0);});
+test('names/photos/phone links and existing action controls never trigger parent navigation twice',()=>{const calls=[],p=customerRowProps(customer,'/admin/customers',url=>calls.push(url));for(const tag of ['a','button','input','select','dialog'])p.onClick({target:{closest:()=>({tagName:tag})}});p.onKeyDown({key:'Enter',target:{},currentTarget:{},preventDefault:()=>{throw Error('should not prevent child interaction');}});assert.equal(calls.length,0);});
+test('image selection supports JPG/PNG/WebP with a strict size bound',()=>{for(const [type,name]of [['image/jpeg','a.jpg'],['image/jpeg','a.JPEG'],['image/png','a.png'],['image/webp','a.webp']])assert.equal(validateCustomerPhotoFile({type,name,size:1000}),'');assert.match(validateCustomerPhotoFile({type:'image/svg+xml',name:'a.svg',size:10}),/JPG/);assert.match(validateCustomerPhotoFile({type:'image/png',name:'a.png',size:5*1024*1024+1}),/5 MB/);});
+test('crop preview matches server square positioning and zoom without changing aspect ratio',()=>{assert.deepEqual(cropPreviewStyle(512,256,{x:1,y:.5,zoom:1}),{width:'200%',height:'100%',left:'-100%',top:'0%'});const c=cropPreviewStyle(512,256,{x:.5,y:.5,zoom:2});assert.equal(c.width,'400%');assert.equal(c.height,'200%');assert.equal(c.left,'-150%');assert.equal(c.top,'-50%');});
+test('customer identity retains name, code, occupation, circular fallback and links for either portal',()=>{for(const portal of ['admin','employee']){const html=renderToStaticMarkup(React.createElement(MemoryRouter,null,React.createElement(ui.CustomerIdentity,{customer,basePath:`/${portal}/customers`})));assert.equal((html.match(new RegExp(`href="/${portal}/customers/synthetic-id"`,'g'))||[]).length,3);for(const text of ['Synthetic Customer','CUS-SYN','Synthetic occupation','profile-avatar','SC'])assert.ok(html.includes(text));assert.doesNotMatch(html,/data:image|base64/);}});
+test('details photo uses a compact 104px circle and an accessible camera/upload action',()=>{const html=renderToStaticMarkup(React.createElement(ui.CustomerPhotoEditor,{customer}));assert.match(html,/Upload \/ Change Customer Photo/);assert.match(html,/104px/);assert.match(html,/customer-camera/);assert.match(html,/border-radius:50%/);});
+
+test('employee photo preview and camera are separate explicit actions',()=>{const html=renderToStaticMarkup(React.createElement(ui.CustomerPhotoEditor,{customer,previewOnClick:true}));assert.match(html,/View customer photo for Synthetic Customer/);assert.match(html,/Upload \/ Change Customer Photo for Synthetic Customer/);assert.equal((html.match(/<button/g)||[]).length,2);assert.doesNotMatch(html,/data:image|base64/);});

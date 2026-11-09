@@ -1,0 +1,12 @@
+const router=require('express').Router(),multer=require('multer'),{rateLimit}=require('express-rate-limit');
+const {authenticate}=require('../middlewares/auth.middleware'),{authorizeRoles}=require('../middlewares/role.middleware');
+const service=require('../services/customerPhoto.service');
+router.use(authenticate,authorizeRoles('ADMIN','EMPLOYEE'),(req,res,next)=>{res.set('Cache-Control','private, no-store');next();});
+const run=fn=>async(req,res,next)=>{try{res.json({success:true,data:await fn(req)});}catch(error){next(error);}};
+router.get('/:id/photo/meta',run(req=>service.metadata(req.params.id,req.user)));
+router.get('/:id/photo',async(req,res,next)=>{try{res.type('image/webp').set('X-Content-Type-Options','nosniff').send(await service.image(req.params.id,req.user,req.query.variant));}catch(error){next(error);}});
+const limit=rateLimit({windowMs:15*60*1000,limit:30,keyGenerator:req=>req.user.role+':'+req.user.id,standardHeaders:'draft-8',legacyHeaders:false,message:{success:false,message:'Too many photo uploads. Please try again later.'}});
+const upload=multer({storage:multer.memoryStorage(),limits:{fileSize:service.MAX_BYTES,files:1,fields:3,fieldSize:100}}).single('photo');
+router.post('/:id/photo',limit,async(req,res,next)=>{try{await service.access(req.params.id,req.user);next();}catch(error){next(error);}},upload,run(req=>service.upload(req.params.id,req.file,req.body,req.user)));
+router.use((error,req,res,next)=>{if(error instanceof multer.MulterError)return res.status(error.code==='LIMIT_FILE_SIZE'?413:422).json({success:false,message:error.code==='LIMIT_FILE_SIZE'?'Choose a photo up to 5 MB':'Upload one JPG, PNG or WebP photo with its positioning controls'});next(error);});
+module.exports=router;

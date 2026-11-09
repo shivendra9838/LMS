@@ -6,7 +6,7 @@ const validateCreateCustomer = [
   body('customerCode').optional().matches(/^CUS[0-9]{6}$/).withMessage('Invalid customer code format'),
   body('mobile').notEmpty().withMessage('Mobile is required').matches(/^[0-9]{10}$/).withMessage('Invalid mobile format'),
   body('address').notEmpty().withMessage('Address is required'),
-  body('employeeId').optional().isMongoId().withMessage('Valid Employee ID is required'),
+  body('employeeId').notEmpty().withMessage('Employee allocation is required').isMongoId().withMessage('Valid Employee ID is required'),
   body('age').notEmpty().withMessage('Age is required').isInt({ min: 19 }).withMessage('Age must be greater than 18'),
   validate
 ];

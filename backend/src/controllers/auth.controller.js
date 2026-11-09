@@ -5,7 +5,7 @@ const { logAccess } = require('../utils/logger');
 const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
-    const result = await loginService(email, password);
+    const result = await loginService(email, password, req.loginRole);
     
     // Attach user to req for auditLogger helper
     req.user = { id: result.user.id, role: result.user.role };
@@ -28,6 +28,7 @@ const login = async (req, res, next) => {
       user: result.user
     });
   } catch (error) {
+    if(error.status===401){logAccess('FAILED_LOGIN',{portal:req.loginRole||'LEGACY',ipAddress:req.ip});return res.status(401).json({success:false,message:'Invalid email or password for this portal.'});}
     if (error.message === 'User Not Found' || error.message === 'Invalid Credentials' || error.message === 'Employee account is inactive') {
       logAccess('FAILED_LOGIN', {
         email: req.body?.email,

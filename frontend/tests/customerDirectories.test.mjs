@@ -1,0 +1,14 @@
+import test,{before,after} from 'node:test';
+import assert from 'node:assert/strict';
+import React from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+import {MemoryRouter} from 'react-router-dom';
+import {createServer} from 'vite';
+let vite,ui,risk;
+before(async()=>{vite=await createServer({cacheDir:'node_modules/.vite-tests/customer-directories',optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true,hmr:false,ws:false},appType:'custom'});ui=await vite.ssrLoadModule('/src/components/directories/DirectoryUi.jsx');risk=await vite.ssrLoadModule('/src/pages/shared/CustomerRiskDirectory.jsx');});
+after(async()=>{await vite?.close();});
+const render=(component,props)=>renderToStaticMarkup(React.createElement(MemoryRouter,null,React.createElement(component,props)));
+test('KYC actions preserve revision permissions and missing dates are never invented',()=>{assert.equal(ui.kycAction('DRAFT'),'View / Edit');assert.equal(ui.kycAction('APPROVED'),'View');assert.equal(ui.kycAction('PENDING'),'View');assert.equal(ui.kycAction('REJECTED'),'View / Revise');assert.equal(ui.kycAction('CORRECTION_REQUIRED'),'View / Revise');assert.equal(ui.dateLabel(null),'—');});
+test('risk summary uses authoritative categories and keeps insufficient history separate',()=>{const html=render(risk.RiskDirectorySummary,{summary:{total:5,counts:{GOOD:1,REVIEW_REQUIRED:1,HIGH_RISK:1,INSUFFICIENT_HISTORY:2}}});assert.match(html,/20% of total/);assert.match(html,/Insufficient History: 2/);assert.match(html,/not classified as Low Risk/);});
+test('KYC identity reuses authorized avatar and existing detail route without private URLs',()=>{const html=render(ui.DirectoryIdentity,{row:{_id:'lead',name:'Synthetic',mobile:'9100000000'},to:'/employee/customers/kyc/lead',lead:true});assert.match(html,/\/employee\/customers\/kyc\/lead/);assert.match(html,/profile photo/);assert.doesNotMatch(html,/data:image|\/uploads\//);});
+test('pagination, loading, error retry and empty states remain actionable',()=>{assert.match(render(ui.DirectoryPager,{meta:{total:11,page:1,limit:10,totalPages:2},onPage:()=>{}}),/Showing 1–10 of 11/);assert.match(render(ui.DirectoryState,{state:{loading:true},empty:false}),/Loading authorized/);assert.match(render(ui.DirectoryState,{state:{error:'Denied'}}),/Retry/);assert.match(render(ui.DirectoryState,{state:{loading:false},empty:true}),/No records match/);});

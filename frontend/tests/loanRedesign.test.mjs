@@ -1,0 +1,15 @@
+import test,{before,after} from 'node:test';
+import assert from 'node:assert/strict';
+import {createServer} from 'vite';
+import React from 'react';
+import {renderToStaticMarkup} from 'react-dom/server';
+import {MemoryRouter} from 'react-router-dom';
+let vite,ui;
+before(async()=>{vite=await createServer({cacheDir:'node_modules/.vite-tests/loan-redesign',optimizeDeps:{noDiscovery:true,include:[]},server:{middlewareMode:true,hmr:false,ws:false},appType:'custom'});ui=await vite.ssrLoadModule('/src/components/loans/LoanUi.jsx');});
+after(async()=>vite?.close());
+const render=(Component,props)=>renderToStaticMarkup(React.createElement(MemoryRouter,null,React.createElement(Component,props)));
+test('financial summary keeps actual 800 receipt and backend allocation/outstanding separate',()=>{const html=render(ui.FinancialSummary,{loan:{loanAmount:20000,interestPercent:5,interestAmount:1000,totalPayable:21000,dailyInstallment:700,durationDays:30,maturityDate:'2026-11-25',remainingAmount:20200,overdueAmount:600,financialDisplay:{received:800,allocated:800}}});assert.match(html,/₹800/);assert.match(html,/₹20,200/);assert.match(html,/Customer Payments Received/);assert.match(html,/Allocated to Installments/);assert.match(html,/Daily Installment/);assert.doesNotMatch(html,/Monthly Installment/);});
+test('receipt display preserves 800 actual and 700 plus 100 allocations and exact receipt route',()=>{const html=render(ui.ReceiptHistory,{portal:'employee',collections:[{_id:'r800',collectionNumber:'SYN800',amountReceived:800,paymentDate:'2026-10-28T12:00:00Z',createdAt:'2026-10-29T12:00:00Z',paymentMode:'CASH',status:'PAID',collectedBy:{name:'Synthetic Collector'},allocations:[{amount:700,dueDate:'2026-10-28'},{amount:100,dueDate:'2026-10-29'}]}]});assert.match(html,/₹800.*received/);assert.match(html,/Applied ₹700/);assert.match(html,/Applied ₹100/);assert.match(html,/Not verified/);assert.match(html,/employee\/collections\/receipt\/r800/);assert.match(html,/Synthetic Collector/);assert.match(html,/System Entry/);});
+test('reviewed customer receipt states show real reviewer and do not imply company settlement',()=>{const html=render(ui.ReceiptHistory,{portal:'admin',collections:[{_id:'r',amountReceived:700,status:'PAID',review:{verifiedAt:'2026-10-29',verifiedBy:{name:'Synthetic Admin'},remarks:'Reviewed'}}]});assert.match(html,/Verified/);assert.match(html,/Synthetic Admin/);assert.match(html,/Reviewed/);assert.doesNotMatch(html,/Settlement Verified/);});
+test('missing branch and unavailable financial aggregate are not fabricated',()=>{assert.doesNotMatch(render(ui.LoanParties,{loan:{customerId:{name:'Test'},employeeId:{name:'Employee'}},portal:'employee'}),/Branch \/ Location:/);assert.match(render(ui.FinancialSummary,{loan:{}}),/Unavailable/);});
+test('all financial statuses have intentional readable tones',()=>{for(const [status,tone]of [['Paid in Advance (Paid Early)','active'],['Partially Paid','partial'],['OVERDUE','overdue'],['CLOSED','closed']])assert.match(render(ui.LoanStatus,{status}),new RegExp('rl-status-'+tone));});

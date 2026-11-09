@@ -1,3 +1,4 @@
+import LoadingIndicator from '../../components/ui/Loading';
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -35,6 +36,10 @@ const EditCustomer = () => {
       try {
         const res = await api.get(`/customers/${id}`);
         const customer = res.data.data;
+        if (customer.kycLeadId) {
+          navigate(`${basePath}/${id}/kyc`, { replace: true });
+          return;
+        }
         setFormData({
           name: customer.name || '',
           fatherName: customer.fatherName || '',
@@ -89,7 +94,7 @@ const EditCustomer = () => {
   if (initialLoading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <LoadingIndicator message="Loading customers…" variant="section"/>
       </div>
     );
   }

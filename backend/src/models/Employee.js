@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const employeeSchema = new mongoose.Schema({
+  address: {type:String,maxlength:500},
   name: {
     type: String,
     required: true,
@@ -26,6 +27,15 @@ const employeeSchema = new mongoose.Schema({
   password: {
     type: String,
     required: true
+  },
+  authVersion: { type: Number, default: 0, select: false },
+  passwordReset: {
+    type: new mongoose.Schema({
+      tokenHash: String,
+      expiresAt: Date,
+      requestedAt: Date
+    }, { _id: false }),
+    select: false
   },
   city: {
     type: String,
@@ -64,6 +74,8 @@ const employeeSchema = new mongoose.Schema({
 });
 
 const { hashPassword } = require('../utils/password');
+employeeSchema.index({branchId:1,status:1,name:1,_id:1},{collation:{locale:'en',strength:2},name:'portfolio_employee_directory'});
+for(const field of ['name','employeeCode','phone'])employeeSchema.index({[field]:1,_id:1},{collation:{locale:'en',strength:2},name:`portfolio_employee_search_${field}`});
 
 employeeSchema.pre('save', async function() {
   if (!this.isModified('password')) {

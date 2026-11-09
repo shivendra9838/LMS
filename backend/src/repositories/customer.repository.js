@@ -12,6 +12,7 @@ const createCustomer = async (customerData) => {
 const getCustomerList = async (query, skip, limit, sortObj) => {
   const total = await Customer.countDocuments(query);
   const customers = await Customer.find(query)
+    .select('name customerCode mobile occupation city area status employeeId branchId kycLeadId kycApprovedAt createdAt')
     .populate('employeeId', 'name employeeCode')
     .populate('branchId', 'name areas status')
     .sort(sortObj)
