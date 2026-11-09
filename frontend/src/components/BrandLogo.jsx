@@ -9,6 +9,10 @@ export default function BrandLogo({ variant = 'compact', className = '' }) {
     </div>;
   }
 
+  if (variant === 'clean') {
+    return <img src={logo} width="733" height="647" alt="Royal Enterprises — A Tradition of TRUST" className={`block h-auto w-full object-contain ${className}`} fetchPriority="high" />;
+  }
+
   const header = variant === 'header';
   return <div className={`flex min-w-0 items-center ${header ? 'gap-2' : 'gap-2.5'} ${className}`}>
     <span className={`flex ${header ? 'h-10 w-10' : 'h-11 w-14'} shrink-0 items-center justify-center rounded-lg bg-[#111111] p-1.5 ring-1 ring-[#b99548]/30`}>
