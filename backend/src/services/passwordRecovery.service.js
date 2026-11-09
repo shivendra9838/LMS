@@ -6,18 +6,39 @@ const { createAuditLog } = require('../utils/auditLogger');
 const {render,publicActionUrl}=require('./emailTemplate.service');
 
 function emailConfiguration() {
-  const { SMTP_HOST, SMTP_PORT = '465', SMTP_USER, SMTP_PASS, SMTP_FROM, FRONTEND_URL } = process.env;
-  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS || !SMTP_FROM || !FRONTEND_URL) return null;
+  const user = process.env.GMAIL_USER || process.env.EMAIL_USER || process.env.SMTP_USER;
+  const rawPass = process.env.GMAIL_APP_PASSWORD || process.env.GMAIL_APP_PASS || process.env.EMAIL_PASS || process.env.SMTP_PASS;
+  if (!user || !rawPass) return null;
+
+  const rawFrom = process.env.EMAIL_FROM || process.env.SMTP_FROM || `Royal Enterprises <${user}>`;
+  const rawFrontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+  const port = String(process.env.SMTP_PORT || '465');
+
   try {
-    const url = new URL(FRONTEND_URL);
+    const url = new URL(rawFrontendUrl);
     if (url.username || url.password || url.search || url.hash || url.pathname !== '/') return null;
     if (url.protocol !== 'https:' && !(url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname))) return null;
-    if (!['465', '587'].includes(SMTP_PORT)) return null;
+    if (!['465', '587'].includes(port)) return null;
+
+    const pass = String(rawPass).trim().replace(/\s+/g, '');
+    const isGmail = host === 'smtp.gmail.com' || Boolean(process.env.GMAIL_USER);
+
     return {
       origin: url.origin,
-      from: SMTP_FROM,
-      transport: { host: SMTP_HOST, port: Number(SMTP_PORT), secure: SMTP_PORT === '465', requireTLS: true,
-        auth: { user: SMTP_USER, pass: SMTP_PASS }, connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 15000 }
+      from: rawFrom,
+      isGmail,
+      transport: {
+        service: isGmail ? 'gmail' : undefined,
+        host,
+        port: Number(port),
+        secure: port === '465',
+        requireTLS: true,
+        auth: { user: String(user).trim(), pass },
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000
+      }
     };
   } catch { return null; }
 }
