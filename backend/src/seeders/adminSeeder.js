@@ -26,7 +26,7 @@ const seedAdmin = async () => {
       name: 'Super Admin',
       email: 'admin@loan.com',
       password: 'Admin@123', // Will be hashed automatically by pre-save hook
-      phone: '9999999999',
+      phone: '9569574750',
       role: 'ADMIN',
       isActive: true
     });

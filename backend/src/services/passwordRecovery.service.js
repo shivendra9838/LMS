@@ -6,35 +6,27 @@ const { createAuditLog } = require('../utils/auditLogger');
 const {render,publicActionUrl}=require('./emailTemplate.service');
 
 function emailConfiguration() {
-  const user = process.env.GMAIL_USER || process.env.EMAIL_USER || process.env.SMTP_USER;
-  const rawPass = process.env.GMAIL_APP_PASSWORD || process.env.GMAIL_APP_PASS || process.env.EMAIL_PASS || process.env.SMTP_PASS;
+  const user = String(process.env.GMAIL_USER || '').trim().replace(/^["']|["']$/g, '');
+  const rawPass = process.env.GMAIL_APP_PASSWORD || process.env.GMAIL_APP_PASS;
   if (!user || !rawPass) return null;
 
-  const rawFrom = process.env.EMAIL_FROM || process.env.SMTP_FROM || `Royal Enterprises <${user}>`;
-  const rawFrontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-  const port = String(process.env.SMTP_PORT || '465');
+  const rawFrontendUrl = String(process.env.FRONTEND_URL || 'http://localhost:5173').trim().replace(/^["']|["']$/g, '');
 
   try {
     const url = new URL(rawFrontendUrl);
-    if (url.username || url.password || url.search || url.hash || url.pathname !== '/') return null;
+    if (url.username || url.password || url.search || url.hash || (url.pathname !== '/' && url.pathname !== '')) return null;
     if (url.protocol !== 'https:' && !(url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname))) return null;
-    if (!['465', '587'].includes(port)) return null;
-
-    const pass = String(rawPass).trim().replace(/\s+/g, '');
-    const isGmail = host === 'smtp.gmail.com' || Boolean(process.env.GMAIL_USER);
+    const pass = String(rawPass).trim().replace(/^["']|["']$/g, '').replace(/\s+/g, '');
+    if (!/^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(user) || !/^[a-zA-Z]{16}$/.test(pass)) return null;
 
     return {
       origin: url.origin,
-      from: rawFrom,
-      isGmail,
+      from: `Royal Enterprises <${user}>`,
+      isGmail: true,
       transport: {
-        service: isGmail ? 'gmail' : undefined,
-        host,
-        port: Number(port),
-        secure: port === '465',
+        service: 'gmail',
         requireTLS: true,
-        auth: { user: String(user).trim(), pass },
+        auth: { user, pass },
         connectionTimeout: 10000,
         greetingTimeout: 10000,
         socketTimeout: 15000

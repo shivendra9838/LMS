@@ -26,7 +26,7 @@ const reset = (token, password = 'NewSecurePassword123!') => request(app).post('
 
 beforeAll(async () => {
   process.env.JWT_SECRET = 'password-recovery-isolated-test';
-  Object.assign(process.env, { SMTP_HOST:'smtp.gmail.com', SMTP_PORT:'465', SMTP_USER:'sender@example.test', SMTP_PASS:'synthetic-only', SMTP_FROM:'Royal <sender@example.test>', FRONTEND_URL:'https://portal.example.test' });
+  Object.assign(process.env, { GMAIL_USER:'sender@example.test', GMAIL_APP_PASSWORD:'abcdefghijklmnop', FRONTEND_URL:'https://portal.example.test' });
   nodemailer.createTransport.mockReturnValue({ sendMail, close });
   mongo = await MongoMemoryServer.create();
   await mongoose.connect(mongo.getUri(), {dbName:'isolated_password_recovery'});
@@ -37,10 +37,10 @@ beforeAll(async () => {
 afterAll(async () => { await mongoose.disconnect(); if(mongo)await mongo.stop(); });
 
 test('unconfigured email returns an honest unavailable response', async () => {
-  const saved = process.env.SMTP_PASS; delete process.env.SMTP_PASS;
+  const saved = process.env.GMAIL_APP_PASSWORD; delete process.env.GMAIL_APP_PASSWORD;
   const response = await request(app).post('/api/v1/auth/employee/forgot-password').send({email:employee.email});
   expect(response.status).toBe(503); expect(response.body.message).toMatch(/not configured/);
-  process.env.SMTP_PASS = saved;
+  process.env.GMAIL_APP_PASSWORD = saved;
 });
 
 test('email tokens are hashed, private, expiring, use trusted fragment URL and respect cooldown', async () => {
@@ -69,9 +69,9 @@ test('unknown/admin/inactive addresses do not send employee recovery emails; API
   expect(known.status).toBe(202); expect(unknown.body).toEqual(known.body);
 });
 
-test('SMTP failure invalidates that reset token without exposing credentials', async () => {
+test('email delivery failure invalidates that reset token without exposing credentials', async () => {
   await Employee.updateOne({_id:employee._id},{$unset:{passwordReset:''}});
-  sendMail.mockRejectedValueOnce(new Error('private SMTP details'));
+  sendMail.mockRejectedValueOnce(new Error('private details'));
   await expect(recovery.requestReset(employee.email, {})).rejects.toThrow('RESET_EMAIL_DELIVERY_FAILED');
   const stored = await Employee.findById(employee._id).select('+passwordReset');
   expect(stored.passwordReset.tokenHash).toBeUndefined();

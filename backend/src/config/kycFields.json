@@ -1,13 +1,322 @@
 [
-  {"title":"Personal Information","fields":[["name","Full Name","text",true],["fatherName","Father's Name","text",true],["dob","Date of Birth","date",true],["gender","Gender","gender",true],["nationality","Nationality","text",true],["occupation","Occupation","text",true],["maritalStatus","Marital Status","marital",true]]},
-  {"title":"Contact Details","fields":[["mobile","Primary Mobile Number","tel",true],["alternateMobile","Alternate Mobile Number","tel"],["email","Email ID","email"]]},
-  {"title":"Residential Address","fields":[["address","Address","textarea",true],["city","City","text",true],["state","State","text",true],["pin","PIN","pin",true],["area","Area","text",true],["landmark","Landmark","text"]]},
-  {"title":"Business Address","fields":[["businessAddress","Address","textarea"],["businessCity","City","text"],["businessState","State","text"],["businessPin","PIN","pin"]]},
-  {"title":"Permanent Address","fields":[["permanentAddress","Address","textarea",true],["permanentCity","City","text",true],["permanentState","State","text",true],["permanentPin","PIN","pin",true]]},
-  {"title":"Two Customer References","fields":[["ref1Name","Reference 1 Name","text",true],["ref1Mobile","Reference 1 Contact","tel",true],["ref2Name","Reference 2 Name","text",true],["ref2Mobile","Reference 2 Contact","tel",true]]},
-  {"title":"KYC Documents","fields":[["idProofType","ID Proof Type","identity",true],["idProofNumber","ID Number","text",true],["addressProofType","Address Proof Type","text",true],["addressProofNumber","Address Proof Number","text",true],["businessProof","Business Proof","text"],["incomeProof","Income Proof","text"]]},
-  {"title":"Bank Details","fields":[["bankName","Bank Name","text",true],["accountHolder","Account Holder Name","text",true],["accountNumber","Account Number","account",true],["ifsc","IFSC Code","text",true],["bankBranch","Branch Name","text",true]]},
-  {"title":"Vehicle Details","fields":[["vehicleType","Vehicle Type","text"],["vehicleNumber","Vehicle Number","text"]]},
-  {"title":"Loan Details","fields":[["requestedAmount","Loan Amount","number",true],["loanPurpose","Loan Purpose","textarea",true],["tenure","Tenure (days)","number",true]]},
-  {"title":"Customer Declaration and Signature","fields":[["signatureName","Customer Signature / Full Name","text",true],["declarationDate","Date","date",true]]}
+  {
+    "title": "Personal Information",
+    "fields": [
+      [
+        "name",
+        "Full Name",
+        "text",
+        true
+      ],
+      [
+        "fatherName",
+        "Father's Name",
+        "text",
+        true
+      ],
+      [
+        "dob",
+        "Date of Birth",
+        "date",
+        true
+      ],
+      [
+        "gender",
+        "Gender",
+        "gender",
+        true
+      ],
+      [
+        "nationality",
+        "Nationality",
+        "text",
+        true
+      ],
+      [
+        "occupation",
+        "Occupation",
+        "text",
+        true
+      ],
+      [
+        "maritalStatus",
+        "Marital Status",
+        "marital",
+        true
+      ]
+    ]
+  },
+  {
+    "title": "Contact Details",
+    "fields": [
+      [
+        "mobile",
+        "Primary Mobile Number",
+        "tel",
+        true
+      ],
+      [
+        "alternateMobile",
+        "Alternate Mobile Number",
+        "tel"
+      ],
+      [
+        "email",
+        "Email ID",
+        "email"
+      ]
+    ]
+  },
+  {
+    "title": "Residential Address",
+    "fields": [
+      [
+        "address",
+        "Address",
+        "textarea",
+        true
+      ],
+      [
+        "city",
+        "City",
+        "text",
+        true
+      ],
+      [
+        "state",
+        "State",
+        "text",
+        true
+      ],
+      [
+        "pin",
+        "PIN",
+        "pin",
+        true
+      ],
+      [
+        "area",
+        "Area",
+        "text",
+        true
+      ],
+      [
+        "landmark",
+        "Landmark",
+        "text"
+      ]
+    ]
+  },
+  {
+    "title": "Business Address",
+    "fields": [
+      [
+        "businessAddress",
+        "Address",
+        "textarea"
+      ],
+      [
+        "businessCity",
+        "City",
+        "text"
+      ],
+      [
+        "businessState",
+        "State",
+        "text"
+      ],
+      [
+        "businessPin",
+        "PIN",
+        "pin"
+      ]
+    ]
+  },
+  {
+    "title": "Permanent Address",
+    "fields": [
+      [
+        "permanentAddress",
+        "Address",
+        "textarea",
+        true
+      ],
+      [
+        "permanentCity",
+        "City",
+        "text",
+        true
+      ],
+      [
+        "permanentState",
+        "State",
+        "text",
+        true
+      ],
+      [
+        "permanentPin",
+        "PIN",
+        "pin",
+        true
+      ]
+    ]
+  },
+  {
+    "title": "Two Customer References",
+    "fields": [
+      [
+        "ref1Name",
+        "Reference 1 Name",
+        "text",
+        true
+      ],
+      [
+        "ref1Mobile",
+        "Reference 1 Contact",
+        "tel",
+        true
+      ],
+      [
+        "ref2Name",
+        "Reference 2 Name",
+        "text",
+        true
+      ],
+      [
+        "ref2Mobile",
+        "Reference 2 Contact",
+        "tel",
+        true
+      ]
+    ]
+  },
+  {
+    "title": "KYC Documents",
+    "fields": [
+      [
+        "idProofType",
+        "ID Proof Type",
+        "identity",
+        true
+      ],
+      [
+        "idProofNumber",
+        "ID Number",
+        "text",
+        true
+      ],
+      [
+        "addressProofType",
+        "Address Proof Type",
+        "text",
+        true
+      ],
+      [
+        "addressProofNumber",
+        "Address Proof Number",
+        "text",
+        true
+      ],
+      [
+        "businessProof",
+        "Business Proof",
+        "text"
+      ],
+      [
+        "incomeProof",
+        "Income Proof",
+        "text"
+      ]
+    ]
+  },
+  {
+    "title": "Bank Details",
+    "fields": [
+      [
+        "bankName",
+        "Bank Name",
+        "text",
+        true
+      ],
+      [
+        "accountHolder",
+        "Account Holder Name",
+        "text",
+        true
+      ],
+      [
+        "accountNumber",
+        "Account Number",
+        "account",
+        true
+      ],
+      [
+        "ifsc",
+        "IFSC Code",
+        "text",
+        true
+      ],
+      [
+        "bankBranch",
+        "Branch Name",
+        "text",
+        true
+      ]
+    ]
+  },
+  {
+    "title": "Vehicle Details",
+    "fields": [
+      [
+        "vehicleType",
+        "Vehicle Type",
+        "text"
+      ],
+      [
+        "vehicleNumber",
+        "Vehicle Number",
+        "text"
+      ]
+    ]
+  },
+  {
+    "title": "Loan Details",
+    "fields": [
+      [
+        "requestedAmount",
+        "Loan Amount",
+        "number",
+        true
+      ],
+      [
+        "loanPurpose",
+        "Loan Purpose",
+        "textarea",
+        true
+      ],
+      [
+        "tenure",
+        "Tenure (days)",
+        "number",
+        true
+      ]
+    ]
+  },
+  {
+    "title": "Customer Declaration and Signature",
+    "fields": [
+      [
+        "signatureName",
+        "Customer Signature / Full Name",
+        "text",
+        true
+      ],
+      [
+        "declarationDate",
+        "Date",
+        "date",
+        true
+      ]
+    ]
+  }
 ]

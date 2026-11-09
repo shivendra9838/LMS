@@ -8,7 +8,7 @@ let mongo,admin,employee,user,delivered;
 const sendMail=jest.fn(async message=>{delivered=message;return {accepted:[message.to]};});
 jest.setTimeout(120000);
 beforeAll(async()=>{
- Object.assign(process.env,{JWT_SECRET:'isolated-email-system-key',SMTP_HOST:'smtp.gmail.com',SMTP_PORT:'465',SMTP_USER:'sandbox@example.test',SMTP_PASS:'synthetic-only',SMTP_FROM:'Royal <sandbox@example.test>',FRONTEND_URL:'http://localhost:5173'});
+ Object.assign(process.env,{JWT_SECRET:'isolated-email-system-key',GMAIL_USER:'sandbox@example.test',GMAIL_APP_PASSWORD:'abcdefghijklmnop',FRONTEND_URL:'http://localhost:5173'});
  nodemailer.createTransport.mockReturnValue({sendMail,close:jest.fn()});
  mongo=await MongoMemoryReplSet.create({replSet:{count:1}});await mongoose.connect(mongo.getUri(),{dbName:'isolated_email_test'});
  admin=await Admin.create({name:'Email Admin',email:'admin@example.test',phone:'9000000000',password:'OriginalSecure123!'});
@@ -43,7 +43,7 @@ test.each(['EMPLOYEE','ADMIN'])('%s OTP resets password, revokes sessions and au
  const saved=await mail.accountModel(role).findById(account._id).select('+authVersion');expect(saved.authVersion).toBeGreaterThan(0);expect(await require('../../src/utils/password').comparePassword('ChangedSecurePassword123!',saved.password)).toBe(true);
  expect(await require('../../src/models/AuditLog').exists({userId:account._id,action:'PASSWORD_RESET_COMPLETED'})).toBeTruthy();
 });
-test('SMTP challenge failure invalidates code and hides transport secrets',async()=>{await Challenge.deleteMany({accountId:employee._id});sendMail.mockRejectedValueOnce(new Error('secret SMTP password'));await expect(mail.requestCode(employee.email,'EMPLOYEE')).rejects.toThrow('Email could not be sent');const row=await Challenge.findOne({accountId:employee._id});expect(+row.expiresAt).toBe(0);});
+test('email challenge failure invalidates code and hides transport secrets',async()=>{await Challenge.deleteMany({accountId:employee._id});sendMail.mockRejectedValueOnce(new Error('secret password'));await expect(mail.requestCode(employee.email,'EMPLOYEE')).rejects.toThrow('Email could not be sent');const row=await Challenge.findOne({accountId:employee._id});expect(+row.expiresAt).toBe(0);});
 test('preferences validate booleans and protect Admin operational settings',async()=>{
  await mail.preferences(user,{daily:false});expect((await mail.preferences(user)).preferences.daily).toBe(false);await expect(mail.preferences(user,{daily:'false'})).rejects.toThrow('valid');await expect(worker.configuration(user)).rejects.toThrow();
  const adminUser={id:String(admin._id),role:'ADMIN'};await expect(worker.configuration(adminUser,{reminderTime:'25:90'})).rejects.toThrow('valid');const result=await worker.configuration(adminUser,{reminderTime:'09:30'});expect(result.settings.reminderTime).toBe('09:30');
@@ -62,7 +62,7 @@ test('optional preferences do not suppress verified security confirmations',asyn
  const audit=await require('../../src/models/AuditLog').create({userId:employee._id,userRole:'EMPLOYEE',userModel:'Employee',action:'PASSWORD_CHANGED',module:'AUTH'});
  const content=await worker.content({recipientId:employee._id,role:'EMPLOYEE',kind:'SECURITY',auditId:audit._id},new Date());expect(content.payload.title).toBe('Password changed successfully');
 });
-test('retryable SMTP failure is persisted with bounded backoff; ambiguous outcome is not resent',async()=>{
+test('retryable email delivery failure is persisted with bounded backoff; ambiguous outcome is not resent',async()=>{
  const value=await fresh();await mail.confirmCode(value,user);
  const audit=await require('../../src/models/AuditLog').create({userId:employee._id,userRole:'EMPLOYEE',action:'PASSWORD_CHANGED',module:'AUTH'});
  const job=await Job.create({key:'retry-test',recipientId:employee._id,role:'EMPLOYEE',kind:'SECURITY',auditId:audit._id});

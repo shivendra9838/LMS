@@ -11,7 +11,7 @@ const login=(role,email,pw=password,extra={})=>request(app).post('/api/v1/auth/'
 const get=(path,token)=>request(app).get('/api/v1'+path).set('Authorization','Bearer '+token);
 jest.setTimeout(120000);
 beforeAll(async()=>{
- Object.assign(process.env,{JWT_SECRET:'portal-login-isolated-secret',SMTP_HOST:'smtp.gmail.com',SMTP_PORT:'465',SMTP_USER:'sandbox@example.test',SMTP_PASS:'synthetic-only',SMTP_FROM:'Royal <sandbox@example.test>',FRONTEND_URL:'http://localhost:5173'});
+ Object.assign(process.env,{JWT_SECRET:'portal-login-isolated-secret',GMAIL_USER:'sandbox@example.test',GMAIL_APP_PASSWORD:'abcdefghijklmnop',FRONTEND_URL:'http://localhost:5173'});
  require('nodemailer').createTransport.mockReturnValue({sendMail:async mail=>{lastMail=mail;return {accepted:[mail.to]};},close:jest.fn()});
  mongo=await MongoMemoryReplSet.create({replSet:{count:1}});await mongoose.connect(mongo.getUri(),{dbName:'isolated_portal_login'});
  await Promise.all(Object.values(mongoose.models).map(model=>model.init()));

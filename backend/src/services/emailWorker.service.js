@@ -52,7 +52,7 @@ async function content(job,now){
  const setting=await Settings.findOne({userId:job.recipientId,role:job.role}).select('+emailVerifiedHash').lean();
  if(!setting?.emailVerifiedAt||setting.emailVerifiedHash!==mail.digest(account.email.toLowerCase()))return {skip:'EMAIL_NOT_VERIFIED'};
  const preferences={...mail.defaults,...setting.emailPreferences},company=await Company.findById('company').lean(),config={...operationDefaults,...company?.emailSettings};
- const base=require('./passwordRecovery.service').emailConfiguration()?.origin;if(!base)return {skip:'SMTP_NOT_CONFIGURED'};
+ const base=require('./passwordRecovery.service').emailConfiguration()?.origin;if(!base)return {skip:'EMAIL_NOT_CONFIGURED'};
  const user={id:String(account._id),role:job.role};let payload;
  if(job.kind==='SECURITY'){
   const audit=await require('../models/AuditLog').findById(job.auditId).lean();if(!audit)return {skip:'SOURCE_UNAVAILABLE'};
@@ -83,19 +83,19 @@ async function content(job,now){
  return {to:account.email,payload:{...payload,recipientName:account.name}};
 }
 async function deliverOne(now=new Date()){
- // A crash during SMTP can have an unknown delivery outcome. Never blindly resend it.
+ // A crash during email delivery can have an unknown delivery outcome. Never blindly resend it.
  await Job.updateMany({status:'SENDING',lockedAt:{$lt:new Date(+now-120000)}},{$set:{status:'UNCERTAIN',reason:'DELIVERY_OUTCOME_UNKNOWN'}});
  const job=await Job.findOneAndUpdate({status:'PENDING',nextAttemptAt:{$lte:now}},{$set:{status:'SENDING',lockedAt:now},$inc:{attempts:1}},{sort:{createdAt:1},returnDocument:'after'}).lean();if(!job)return false;
  try{const message=await content(job,now);if(message.skip){await Job.updateOne({_id:job._id},{$set:{status:'SKIPPED',reason:message.skip}});return true;}
   await mail.send(message.to,message.payload,job.key);await Job.updateOne({_id:job._id},{$set:{status:'SENT',sentAt:new Date()},$unset:{reason:1}});
  }catch(error){
   const safeRetry=['ECONNECTION','EDNS','ECONNREFUSED'].includes(error.code)||(error.responseCode>=400&&error.responseCode<500);
-  await Job.updateOne({_id:job._id},{$set:{status:safeRetry&&job.attempts<5?'PENDING':safeRetry||error.responseCode>=500?'FAILED':'UNCERTAIN',reason:safeRetry?'TEMPORARY_SMTP_FAILURE':'DELIVERY_REQUIRES_REVIEW',nextAttemptAt:new Date(+now+Math.min(3600000,30000*2**job.attempts))}});
+  await Job.updateOne({_id:job._id},{$set:{status:safeRetry&&job.attempts<5?'PENDING':safeRetry||error.responseCode>=500?'FAILED':'UNCERTAIN',reason:safeRetry?'TEMPORARY_DELIVERY_FAILURE':'DELIVERY_REQUIRES_REVIEW',nextAttemptAt:new Date(+now+Math.min(3600000,30000*2**job.attempts))}});
  }
  return true;
 }
 let busy=false,timer;
 async function tick(){if(busy||!require('./passwordRecovery.service').emailConfiguration())return;busy=true;try{await discover();for(let i=0;i<20;i++)if(!await deliverOne())break;}finally{busy=false;}}
-function start(){if(timer)return;timer=setInterval(()=>tick().catch(()=>console.error('Email worker failed; no recipient or SMTP details logged')),30000);timer.unref();tick().catch(()=>console.error('Email worker initialization failed'));}
+function start(){if(timer)return;timer=setInterval(()=>tick().catch(()=>console.error('Email worker failed; no recipient details logged')),30000);timer.unref();tick().catch(()=>console.error('Email worker initialization failed'));}
 function stop(){clearInterval(timer);timer=null;}
 module.exports={initialize,discover,deliverOne,content,configuration,clock,group,start,stop,tick};

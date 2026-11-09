@@ -20,4 +20,4 @@ test('report dates cross year boundaries safely and filters keep literal values 
   assert.deepEqual(initialReportFilters('2026-01-05'),{startDate:'2025-12-23',endDate:'2026-01-05',employeeId:'',city:'',area:'',status:'',paymentMode:''});
   const query=reportQuery({area:'A&B + C',city:'',paymentMode:'UPI'}),params=new URLSearchParams(query);
   assert.equal(params.get('area'),'A&B + C');assert.equal(params.has('city'),false);assert.equal(params.get('paymentMode'),'UPI');
-});
+});    

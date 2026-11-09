@@ -25,9 +25,9 @@ router.post('/forgot-password', body('email').isString().trim().isLength({ max: 
   const emailConfig=recovery.emailConfiguration();
   if (!emailConfig) return res.status(503).json({ success: false, message: 'Password recovery email is not configured. Please contact your administrator.' });
   if (!require('../services/emailTemplate.service').publicActionUrl(emailConfig.origin+'/employee/reset-password')) return res.status(503).json({ success: false, message: 'Password reset links require a public HTTPS portal URL. Use the email OTP reset option or contact your administrator.' });
-  // Return identically for unknown, inactive and eligible accounts, without SMTP timing revealing account existence.
+  // Return identically for unknown, inactive and eligible accounts, without delivery timing revealing account existence.
   setImmediate(() => recovery.requestReset(req.body.email, req).catch(() => {
-    logError('PASSWORD_RECOVERY_DELIVERY_FAILED', new Error('Password recovery email could not be delivered; check SMTP configuration.'));
+    logError('PASSWORD_RECOVERY_DELIVERY_FAILED', new Error('Password recovery email could not be delivered; check Gmail configuration.'));
   }));
   return res.status(202).json({ success: true, message: 'If an active employee account matches this email, a reset link will arrive shortly. Check your spam folder too.' });
 });

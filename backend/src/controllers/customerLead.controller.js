@@ -36,7 +36,6 @@ const getCustomerLeadListController = async (req, res, next) => {
     next(error);
   }
 };
-
 const getCustomerLeadController = async (req, res, next) => {
   try {
     const lead = await getCustomerLeadByIdService(req.params.id, req.user);
