@@ -3,7 +3,7 @@ import { useRef, useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
-import { User, Save, Mail } from 'lucide-react';
+import { User, Save, Mail, Copy, Check } from 'lucide-react';
 import { EmployeeHeading, EmployeePanel, EmployeeFields } from '../../components/employees/EmployeeUi';
 import { employeeErrors } from '../../components/employees/presentation';
 
@@ -16,6 +16,8 @@ const EditEmployee = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [pendingEmail, setPendingEmail] = useState(null);
+  const [setupUrl, setSetupUrl] = useState(null);
+  const [copied, setCopied] = useState(false);
   const [resending, setResending] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [formData, setFormData] = useState({
@@ -55,11 +57,22 @@ const EditEmployee = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleCopyLink = () => {
+    if (!setupUrl) return;
+    navigator.clipboard.writeText(setupUrl);
+    setCopied(true);
+    toast.success('Setup link copied to clipboard!');
+    setTimeout(() => setCopied(false), 3000);
+  };
+
   const handleResendVerification = async () => {
     setResending(true);
     try {
-      await api.post(`/employees/${id}/resend-verification`);
+      const res = await api.post(`/employees/${id}/resend-verification`);
       toast.success('Verification link resent successfully');
+      if (res.data?.setupUrl) {
+        setSetupUrl(res.data.setupUrl);
+      }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to resend verification link');
     } finally {
@@ -137,7 +150,18 @@ const EditEmployee = () => {
                 </p>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {setupUrl && (
+                <button
+                  type="button"
+                  onClick={handleCopyLink}
+                  className="btn-secondary"
+                  style={{ fontSize: '0.8rem', padding: '6px 12px', borderColor: 'var(--gold, #d4af37)', color: 'var(--gold, #d4af37)', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                >
+                  {copied ? <Check size={14} /> : <Copy size={14} />}
+                  {copied ? 'Copied!' : 'Copy setup link'}
+                </button>
+              )}
               <button
                 type="button"
                 disabled={resending || cancelling}

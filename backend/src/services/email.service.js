@@ -31,6 +31,7 @@ async function sendViaBrevo(to, content, apiKey, senderEmail, senderName = 'Roya
   });
   if (!response.ok) {
     const errorData = await response.text();
+    console.error(`[Brevo API Error] Status ${response.status}: ${errorData}`);
     throw new Error(`Brevo API delivery failed (${response.status}): ${errorData}`);
   }
   return true;
@@ -54,34 +55,59 @@ async function sendViaResend(to, content, apiKey, fromAddress = 'Royal Enterpris
   });
   if (!response.ok) {
     const errorData = await response.text();
+    console.error(`[Resend API Error] Status ${response.status}: ${errorData}`);
     throw new Error(`Resend API delivery failed (${response.status}): ${errorData}`);
   }
   return true;
 }
 
-async function send(to,content,key) {
-  const config=emailConfiguration(); if(!config)throw new Error('EMAIL_NOT_CONFIGURED');
-  
-  if (process.env.BREVO_API_KEY) {
-    return await sendViaBrevo(to, content, process.env.BREVO_API_KEY, config.user || 'vtechsoft9838@gmail.com');
+async function send(to, content, key) {
+  const config = emailConfiguration();
+  const brevoKey = (process.env.BREVO_API_KEY || '').trim();
+  const resendKey = (process.env.RESEND_API_KEY || '').trim();
+  const senderEmail = (process.env.BREVO_SENDER_EMAIL || process.env.GMAIL_USER || config?.user || 'vtechsoft9838@gmail.com').trim();
+
+  if (brevoKey) {
+    console.log(`[Email Delivery] Sending "${content.title}" to ${to} via Brevo API (HTTPS)...`);
+    const sent = await sendViaBrevo(to, content, brevoKey, senderEmail);
+    console.log(`[Email Delivery] Successfully sent "${content.title}" to ${to} via Brevo API`);
+    return sent;
   }
-  if (process.env.RESEND_API_KEY) {
-    return await sendViaResend(to, content, process.env.RESEND_API_KEY, process.env.RESEND_FROM || 'Royal Enterprises <onboarding@resend.dev>');
+  if (resendKey) {
+    console.log(`[Email Delivery] Sending "${content.title}" to ${to} via Resend API (HTTPS)...`);
+    const sent = await sendViaResend(to, content, resendKey, process.env.RESEND_FROM || 'Royal Enterprises <onboarding@resend.dev>');
+    console.log(`[Email Delivery] Successfully sent "${content.title}" to ${to} via Resend API`);
+    return sent;
   }
 
-  const transport=nodemailer.createTransport(config.transport);
+  if (!config || !config.transport) {
+    console.error('[Email Delivery Error] No email provider configured. Please configure BREVO_API_KEY or GMAIL_USER + GMAIL_APP_PASSWORD.');
+    throw new Error('EMAIL_NOT_CONFIGURED');
+  }
+
+  console.log(`[Email Delivery] Sending "${content.title}" to ${to} via Gmail SMTP...`);
+  const transport = nodemailer.createTransport(config.transport);
   try {
-    const result=await transport.sendMail({from:config.from,to,subject:content.title.replace(/[\r\n]/g,' '),
-      messageId:`<${crypto.createHash('sha256').update(key).digest('hex')}@royal-enterprises.local>`,...render(content)});
-    if(!result.accepted?.length)throw Object.assign(new Error('Email not accepted'),{code:'EENVELOPE'});
+    const result = await transport.sendMail({
+      from: config.from,
+      to,
+      subject: content.title.replace(/[\r\n]/g, ' '),
+      messageId: `<${crypto.createHash('sha256').update(key).digest('hex')}@royal-enterprises.local>`,
+      ...render(content)
+    });
+    if (!result.accepted?.length) throw Object.assign(new Error('Email not accepted'), { code: 'EENVELOPE' });
+    console.log(`[Email Delivery] Successfully sent "${content.title}" to ${to} via Gmail SMTP`);
     return true;
   } catch (err) {
+    console.error(`[Email Delivery Error] Failed to send to ${to} via Gmail:`, err?.message || err);
     if (err.code === 'ETIMEDOUT' || err.message?.includes('timeout')) {
       console.error('[OTP Diagnostic] Connection timeout connecting to smtp.gmail.com:465.');
       console.error('[OTP Diagnostic] On Render Free Tier, outbound ports 25, 465, and 587 are blocked. Upgrade Render to a paid instance or set BREVO_API_KEY to send over HTTPS port 443.');
     }
     throw err;
-  } finally {transport.close();}
+  } finally {
+    transport.close();
+  }
 }
 async function preferences(user,body) {
   await require('./settlement.service').authorize(user);
@@ -126,7 +152,7 @@ async function requestCode(email,role,purpose='RESET',user,requestId) {
   if(!row)return fake;
   // OTP exists only in memory and this message; persistence contains a keyed hash only.
   try{
-    console.log(`[OTP] Sending OTP code to ${account.email} (${effectiveRole}) via Gmail...`);
+    console.log(`[OTP] Sending OTP code to ${account.email} (${effectiveRole})...`);
     await send(account.email,{title:purpose==='RESET'?'Password Reset OTP':'Verify Your Account Email',recipientName:account.name,category:'SECURITY',message:purpose==='RESET'?'We received a request to reset your Royal Enterprises account password. Use the verification code below to continue.':'Please verify your registered Royal Enterprises account email using the code below.',otp:{code,expiresAt:row.expiresAt}},'challenge:'+row.id+':'+now.getTime());
     console.log(`[OTP] OTP email successfully sent to ${account.email}`);
   }catch(sendError){

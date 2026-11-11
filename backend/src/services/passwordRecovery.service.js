@@ -6,16 +6,39 @@ const { createAuditLog } = require('../utils/auditLogger');
 const {render,publicActionUrl}=require('./emailTemplate.service');
 
 function emailConfiguration() {
-  const user = String(process.env.GMAIL_USER || '').trim().replace(/^["']|["']$/g, '');
-  const rawPass = process.env.GMAIL_APP_PASSWORD || process.env.GMAIL_APP_PASS;
-  if (!user || !rawPass) return null;
-
   const rawFrontendUrl = String(process.env.FRONTEND_URL || 'http://localhost:5173').trim().replace(/^["']|["']$/g, '');
 
   try {
     const url = new URL(rawFrontendUrl);
     if (url.username || url.password || url.search || url.hash || (url.pathname !== '/' && url.pathname !== '')) return null;
     if (url.protocol !== 'https:' && !(url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname))) return null;
+
+    const brevoKey = String(process.env.BREVO_API_KEY || '').trim();
+    const resendKey = String(process.env.RESEND_API_KEY || '').trim();
+    const senderEmail = String(process.env.BREVO_SENDER_EMAIL || process.env.GMAIL_USER || 'vtechsoft9838@gmail.com').trim();
+
+    if (brevoKey) {
+      return {
+        origin: url.origin,
+        from: `Royal Enterprises <${senderEmail}>`,
+        isBrevo: true,
+        user: senderEmail
+      };
+    }
+
+    if (resendKey) {
+      return {
+        origin: url.origin,
+        from: process.env.RESEND_FROM || `Royal Enterprises <onboarding@resend.dev>`,
+        isResend: true,
+        user: senderEmail
+      };
+    }
+
+    const user = String(process.env.GMAIL_USER || '').trim().replace(/^["']|["']$/g, '');
+    const rawPass = process.env.GMAIL_APP_PASSWORD || process.env.GMAIL_APP_PASS;
+    if (!user || !rawPass) return null;
+
     const pass = String(rawPass).trim().replace(/^["']|["']$/g, '').replace(/\s+/g, '');
     if (!/^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(user) || !/^[a-zA-Z]{16}$/.test(pass)) return null;
 
@@ -23,6 +46,7 @@ function emailConfiguration() {
       origin: url.origin,
       from: `Royal Enterprises <${user}>`,
       isGmail: true,
+      user,
       transport: {
         service: 'gmail',
         requireTLS: true,

@@ -168,7 +168,9 @@ const updateEmployeeService = async (id, updateData, adminId, req) => {
 
       setImmediate(async () => {
         try {
+          console.log(`[Email Change] Sending verification link to ${requestedEmail}...`);
           await emailService.send(requestedEmail, verificationContent, `verify-${id}-${now.getTime()}`);
+          console.log(`[Email Change] Sending notice of change to previous email ${employee.email}...`);
           await emailService.send(employee.email, noticeContent, `notice-${id}-${now.getTime()}`);
         } catch (err) {
           console.error('[Email Change Delivery Error]:', err?.message || err);
@@ -288,6 +290,7 @@ const resendEmployeeEmailVerification = async (id, adminId, req) => {
 
   setImmediate(async () => {
     try {
+      console.log(`[Resend Verification] Resending verification link to ${pendingEmail}...`);
       await emailService.send(pendingEmail, verificationContent, `resend-${id}-${now.getTime()}`);
     } catch (err) {
       console.error('[Resend Verification Email Error]:', err?.message || err);
@@ -302,7 +305,11 @@ const resendEmployeeEmailVerification = async (id, adminId, req) => {
     details: { pendingEmail }
   });
 
-  return { success: true, message: `Verification email resent to ${pendingEmail}` };
+  return {
+    success: true,
+    message: `Verification email resent to ${pendingEmail}`,
+    setupUrl
+  };
 };
 
 const cancelEmployeeEmailVerification = async (id, adminId, req) => {
