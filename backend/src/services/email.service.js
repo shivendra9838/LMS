@@ -12,14 +12,75 @@ function digest(value) {
   if (!process.env.JWT_SECRET) throw new Error('Email security configuration unavailable');
   return crypto.createHmac('sha256',process.env.JWT_SECRET).update('royal-email-v1:'+value).digest('hex');
 }
+async function sendViaBrevo(to, content, apiKey, senderEmail, senderName = 'Royal Enterprises') {
+  const rendered = render(content);
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'api-key': apiKey.trim(),
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify({
+      sender: { name: senderName, email: senderEmail },
+      to: [{ email: to }],
+      subject: content.title.replace(/[\r\n]/g, ' '),
+      htmlContent: rendered.html,
+      textContent: rendered.text
+    })
+  });
+  if (!response.ok) {
+    const errorData = await response.text();
+    throw new Error(`Brevo API delivery failed (${response.status}): ${errorData}`);
+  }
+  return true;
+}
+
+async function sendViaResend(to, content, apiKey, fromAddress = 'Royal Enterprises <onboarding@resend.dev>') {
+  const rendered = render(content);
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey.trim()}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      from: fromAddress,
+      to: [to],
+      subject: content.title.replace(/[\r\n]/g, ' '),
+      html: rendered.html,
+      text: rendered.text
+    })
+  });
+  if (!response.ok) {
+    const errorData = await response.text();
+    throw new Error(`Resend API delivery failed (${response.status}): ${errorData}`);
+  }
+  return true;
+}
+
 async function send(to,content,key) {
   const config=emailConfiguration(); if(!config)throw new Error('EMAIL_NOT_CONFIGURED');
+  
+  if (process.env.BREVO_API_KEY) {
+    return await sendViaBrevo(to, content, process.env.BREVO_API_KEY, config.user || 'vtechsoft9838@gmail.com');
+  }
+  if (process.env.RESEND_API_KEY) {
+    return await sendViaResend(to, content, process.env.RESEND_API_KEY, process.env.RESEND_FROM || 'Royal Enterprises <onboarding@resend.dev>');
+  }
+
   const transport=nodemailer.createTransport(config.transport);
   try {
     const result=await transport.sendMail({from:config.from,to,subject:content.title.replace(/[\r\n]/g,' '),
       messageId:`<${crypto.createHash('sha256').update(key).digest('hex')}@royal-enterprises.local>`,...render(content)});
     if(!result.accepted?.length)throw Object.assign(new Error('Email not accepted'),{code:'EENVELOPE'});
     return true;
+  } catch (err) {
+    if (err.code === 'ETIMEDOUT' || err.message?.includes('timeout')) {
+      console.error('[OTP Diagnostic] Connection timeout connecting to smtp.gmail.com:465.');
+      console.error('[OTP Diagnostic] On Render Free Tier, outbound ports 25, 465, and 587 are blocked. Upgrade Render to a paid instance or set BREVO_API_KEY to send over HTTPS port 443.');
+    }
+    throw err;
   } finally {transport.close();}
 }
 async function preferences(user,body) {
@@ -99,4 +160,4 @@ async function confirmCode(body,user,expectedRole) {
   });
   return {saved:true,signInRequired:Boolean(password)};
 }
-module.exports={send,digest,preferences,requestCode,confirmCode,defaults,accountModel,active};
+module.exports={send,digest,preferences,requestCode,confirmCode,defaults,accountModel,active,sendViaBrevo,sendViaResend};

@@ -50,14 +50,24 @@ async function requestReset(email, req) {
   ] }, { $set: { passwordReset: { tokenHash, requestedAt: now, expiresAt } } }, { returnDocument: 'after' });
   if (!employee) return;
   const resetUrl = `${config.origin}/employee/reset-password#token=${token}`;
-  const transport = nodemailer.createTransport(config.transport);
+  const content = {title:'Reset Your Employee Password',recipientName:employee.name,category:'SECURITY',message:'A password reset was requested for your Royal Enterprises Employee Portal account. Open the one-time link below to choose a new password.',url:resetUrl,actionLabel:'Reset password',rows:[['Link expires at',require('./emailTemplate.service').dateLabel(expiresAt)]],guidance:'If you did not request this, ignore this email. Your password has not changed. Never share this one-time link.'};
   try {
-    const sent = await transport.sendMail({ from: config.from, to: employee.email,
-      subject: 'Royal Enterprises — reset your employee password',
-      ...render({title:'Reset Your Employee Password',recipientName:employee.name,category:'SECURITY',message:'A password reset was requested for your Royal Enterprises Employee Portal account. Open the one-time link below to choose a new password.',url:resetUrl,actionLabel:'Reset password',rows:[['Link expires at',require('./emailTemplate.service').dateLabel(expiresAt)]],guidance:'If you did not request this, ignore this email. Your password has not changed. Never share this one-time link.'}) });
-    if (Array.isArray(sent.accepted) && !sent.accepted.length) throw new Error('Delivery not accepted');
+    const emailService = require('./email.service');
+    if (process.env.BREVO_API_KEY) {
+      await emailService.sendViaBrevo(employee.email, content, process.env.BREVO_API_KEY, config.user || 'vtechsoft9838@gmail.com');
+    } else if (process.env.RESEND_API_KEY) {
+      await emailService.sendViaResend(employee.email, content, process.env.RESEND_API_KEY, process.env.RESEND_FROM || 'Royal Enterprises <onboarding@resend.dev>');
+    } else {
+      const transport = nodemailer.createTransport(config.transport);
+      try {
+        const sent = await transport.sendMail({ from: config.from, to: employee.email,
+          subject: 'Royal Enterprises — reset your employee password',
+          ...render(content) });
+        if (Array.isArray(sent.accepted) && !sent.accepted.length) throw new Error('Delivery not accepted');
+      } finally { transport.close(); }
+    }
     await createAuditLog(req, { action: 'EMPLOYEE_PASSWORD_RESET_EMAIL_SENT', module: 'AUTH', referenceId: employee._id });
-  } catch {
+  } catch (err) {
     await Employee.updateOne({ _id: employee._id, 'passwordReset.tokenHash': tokenHash }, { $unset: { 'passwordReset.tokenHash': '', 'passwordReset.expiresAt': '' } });
     throw new Error('RESET_EMAIL_DELIVERY_FAILED');
   } finally { transport.close(); }
