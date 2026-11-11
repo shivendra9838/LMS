@@ -2,10 +2,20 @@ const path = require('path');
 const net = require('net');
 const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const logoPath=path.resolve(__dirname,'../../assets/royal-enterprises-emblem.png');
-// Links are optional. Development origins and credentials never belong in outgoing email.
+// Links are optional. Valid public HTTPS URLs and local development URLs are permitted.
 function publicActionUrl(value){
  if(typeof value!=='string'||value.length>2048||/[\r\n]/.test(value))return null;
- try{const u=new URL(value),host=u.hostname.toLowerCase();if(u.protocol!=='https:'||u.username||u.password||!host.includes('.')||net.isIP(host.replace(/^\[|\]$/g,''))||/(^|\.)(localhost|local|internal|invalid)$/.test(host))return null;return u.href;}catch{return null;}
+ try{
+   const u=new URL(value),host=u.hostname.toLowerCase();
+   if(u.username||u.password)return null;
+   const isLocal = ['localhost', '127.0.0.1'].includes(host);
+   if(isLocal){
+     if(u.protocol!=='http:'&&u.protocol!=='https:')return null;
+     return u.href;
+   }
+   if(u.protocol!=='https:'||!host.includes('.')||net.isIP(host.replace(/^\[|\]$/g,''))||/(^|\.)(local|internal|invalid)$/.test(host))return null;
+   return u.href;
+ }catch{return null;}
 }
 function dateLabel(value){const date=new Date(value);return value&&Number.isFinite(+date)?new Intl.DateTimeFormat('en-IN',{timeZone:'Asia/Kolkata',dateStyle:'medium',timeStyle:'short'}).format(date)+' IST':null;}
 function render({title='Account notification',message='',recipientName,url,actionLabel='Open secure portal',rows=[],otp,guidance,category}){
@@ -16,7 +26,7 @@ function render({title='Account notification',message='',recipientName,url,actio
  const text=[greeting,title,message,code?`Your one-time code is ${code}.`:null,expiry?`Expires at ${expiry}.`:null,...details.map(([label,value])=>`${label}: ${value??'Not recorded'}`),action?`${actionLabel}: ${action}`:null,help,'Regards,\nRoyal Enterprises','Royal Enterprises — A Tradition of TRUST'].filter(Boolean).join('\n\n');
  const detailTable=details.length?`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#1d222a" style="width:100%;background-color:#1d222a;border:1px solid #3a3e47;border-radius:8px;margin-top:24px;table-layout:fixed;word-wrap:break-word;overflow-wrap:anywhere">${details.map(([label,value])=>`<tr><td width="40%" valign="top" style="padding:12px;color:#bdc3ce;font-size:12px;line-height:20px;border-bottom:1px solid #343942">${escape(label)}</td><td width="60%" valign="top" style="padding:12px;color:#f8f7f2;font-size:14px;line-height:20px;border-bottom:1px solid #343942;font-weight:600">${escape(value??'Not recorded')}</td></tr>`).join('')}</table>`:'';
  const otpBox=code?`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:24px"><tr><td align="center" bgcolor="#292519" style="padding:20px 10px;background-color:#292519;border:1px solid #d6b45e;border-radius:9px"><p style="margin:0 0 10px;color:#e9dfc6;font-size:12px;line-height:18px">Your verification code</p><p class="otp-code" style="margin:0;color:#f4d77f;font-size:36px;line-height:46px;font-family:'Courier New',monospace;font-weight:700;letter-spacing:7px">${escape(code)}</p></td></tr></table>${expiry?`<p style="margin:14px 0 0;color:#cdd2dc;font-size:13px;line-height:21px">Expires at <strong style="color:#f8f7f2">${escape(expiry)}</strong>.</p>`:''}`:'';
- const button=action?`<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:24px;max-width:100%"><tr><td align="center" bgcolor="#e0bb61" style="background-color:#e0bb61;border-radius:7px;mso-padding-alt:14px 22px"><a href="${escape(action)}" style="display:inline-block;padding:14px 22px;border:1px solid #e0bb61;border-radius:7px;color:#17140d;font-size:14px;font-weight:700;line-height:20px;text-decoration:none;text-align:center">${escape(actionLabel)}</a></td></tr></table>`:'';
+ const button=action?`<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:24px;max-width:100%"><tr><td align="center" bgcolor="#e0bb61" style="background-color:#e0bb61;border-radius:7px;mso-padding-alt:14px 22px"><a href="${escape(action)}" style="display:inline-block;padding:14px 22px;border:1px solid #e0bb61;border-radius:7px;color:#17140d;font-size:14px;font-weight:700;line-height:20px;text-decoration:none;text-align:center">${escape(actionLabel)}</a></td></tr></table><p style="margin:14px 0 0;color:#9da5b4;font-size:12px;line-height:18px;word-break:break-all">Or open this link directly: <a href="${escape(action)}" style="color:#ebc86c;text-decoration:underline">${escape(action)}</a></p>`:'';
  return {text,attachments:[{filename:'royal-enterprises-emblem.png',path:logoPath,cid:'royal-logo',contentDisposition:'inline'}],html:`<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark light"><meta name="supported-color-schemes" content="dark light"><title>${escape(title)}</title><style>body,table,td,a{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%}table,td{mso-table-lspace:0pt;mso-table-rspace:0pt}table{border-collapse:collapse}img{-ms-interpolation-mode:bicubic;border:0;outline:none;text-decoration:none}a{word-break:break-word}@media only screen and (max-width:480px){.outer-pad{padding:12px 8px!important}.email-pad{padding:24px 20px!important}.brand-pad{padding:22px 18px!important}.brand-name{font-size:17px!important;line-height:23px!important}.brand-tagline{font-size:11px!important}.brand-logo-cell{width:72px!important;padding-right:12px!important}.brand-logo{width:60px!important;height:auto!important}.email-title{font-size:24px!important;line-height:31px!important}.otp-code{font-size:32px!important;letter-spacing:5px!important}}[data-ogsc] .email-card{background-color:#15181f!important}[data-ogsc] .email-title{color:#f8f7f2!important}</style></head>
 <body bgcolor="#0c0f14" style="margin:0;padding:0;width:100%;background-color:#0c0f14;color:#f8f7f2;font-family:Arial,Helvetica,sans-serif">

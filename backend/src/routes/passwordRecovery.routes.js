@@ -11,18 +11,41 @@ const limiter = rateLimit({ windowMs: 15 * 60000, limit: 10, standardHeaders: 'd
   message: { success: false, message: 'Too many recovery attempts. Please try again in 15 minutes.' } });
 router.use(limiter);
 
-router.post('/otp/request',body('email').isString().trim().isLength({max:254}).isEmail().toLowerCase(),body('role').optional().isIn(['ADMIN','EMPLOYEE']),validate,(req,res)=>{
+router.post('/otp/request',body('email').isString().trim().isLength({max:254}).isEmail().toLowerCase(),body('role').optional().isIn(['ADMIN','EMPLOYEE']),validate,async(req,res)=>{
   if(!recovery.emailConfiguration())return res.status(503).json({success:false,message:'Email is not configured. Contact Admin.'});
-  const challenge=require('crypto').randomBytes(24).toString('hex');
-  setImmediate(async () => {
-    try {
-      await require('../services/email.service').requestCode(req.body.email, role, 'RESET', undefined, challenge);
-    } catch (err) {
-      console.error(`[OTP Error] Delivery failed for ${req.body.email}:`, err?.message || err);
-      logError('OTP_DELIVERY_FAILED', err || new Error('Account recovery delivery failed'));
-    }
+  const emailService = require('../services/email.service');
+  const normalizedEmail = String(req.body.email).trim().toLowerCase();
+
+  // Verify that an active account exists with this email address
+  let account = await emailService.accountModel(role).findOne({ ...emailService.active(role), email: normalizedEmail }).lean();
+  if (!account) {
+    const altRole = role === 'ADMIN' ? 'EMPLOYEE' : 'ADMIN';
+    account = await emailService.accountModel(altRole).findOne({ ...emailService.active(altRole), email: normalizedEmail }).lean();
+  }
+  if (!account) {
+    return res.status(404).json({
+      success: false,
+      message: 'No registered account found with this email address.'
+    });
+  }
+
+  const challenge = require('crypto').randomBytes(24).toString('hex');
+  try {
+    await emailService.requestCode(normalizedEmail, role, 'RESET', undefined, challenge);
+  } catch (err) {
+    console.error(`[OTP Error] Delivery failed for ${normalizedEmail}:`, err?.message || err);
+    logError('OTP_DELIVERY_FAILED', err || new Error('Account recovery delivery failed'));
+    return res.status(503).json({
+      success: false,
+      message: 'Failed to deliver OTP email. Please try again later.'
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    data: { challenge },
+    message: 'A 6-digit OTP code has been sent to your registered email address. The code expires in 10 minutes.'
   });
-  res.status(202).json({success:true,data:{challenge},message:'If an active account matches, a code will arrive shortly. Check spam. The code expires in 10 minutes.'});
 });
 router.post('/otp/reset',async(req,res,next)=>{try{await require('../services/email.service').confirmCode(req.body,undefined,undefined);res.json({success:true,message:'Password updated. Sign in with your new password.'});}catch(error){next(error);}});
 

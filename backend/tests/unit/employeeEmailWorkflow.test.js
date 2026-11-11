@@ -5,10 +5,15 @@ const employeeValidator = require('../../src/validators/employee.validator');
 jest.mock('../../src/utils/auditLogger', () => ({
   createAuditLog: jest.fn().mockResolvedValue({})
 }));
-jest.mock('../../src/services/email.service', () => ({
-  send: jest.fn().mockResolvedValue(true),
-  digest: jest.fn(val => require('crypto').createHash('sha256').update(val).digest('hex'))
-}));
+jest.mock('../../src/services/email.service', () => {
+  const actual = jest.requireActual('../../src/services/email.service');
+  return {
+    ...actual,
+    send: jest.fn().mockResolvedValue(true),
+    digest: jest.fn(val => require('crypto').createHash('sha256').update(val).digest('hex')),
+    requestCode: jest.fn().mockResolvedValue('dummy-request-id')
+  };
+});
 jest.mock('../../src/models/AccountSettings', () => ({
   updateOne: jest.fn().mockResolvedValue({})
 }));
@@ -223,5 +228,69 @@ describe('updateEmployeeService Unit Tests', () => {
     expect(result.emailChangePending).toBe(true);
     expect(result.pendingEmail).toBe('newemail@example.com');
     expect(result.emailVerification.tokenHash).toBeUndefined(); // stripped from response
+  });
+});
+
+describe('Password Recovery OTP Request Account Existence Tests', () => {
+  const Employee = require('../../src/models/Employee');
+  const Admin = require('../../src/models/Admin');
+  const passwordRecoveryRoutes = require('../../src/routes/passwordRecovery.routes');
+  const emailService = require('../../src/services/email.service');
+
+  const router = passwordRecoveryRoutes.forRole('EMPLOYEE');
+  const otpRouteLayer = router.stack.find(s => s.route && s.route.path === '/otp/request');
+  const otpHandler = otpRouteLayer.route.stack[otpRouteLayer.route.stack.length - 1].handle;
+
+  beforeAll(() => {
+    process.env.BREVO_API_KEY = 'test-brevo-key';
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test('POST /otp/request rejects unregistered email with 404', async () => {
+    jest.spyOn(Employee, 'findOne').mockReturnValue({ lean: jest.fn().mockResolvedValue(null) });
+    jest.spyOn(Admin, 'findOne').mockReturnValue({ lean: jest.fn().mockResolvedValue(null) });
+
+    const req = { body: { email: 'unregistered@example.com' } };
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    };
+
+    await otpHandler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      success: false,
+      message: 'No registered account found with this email address.'
+    }));
+  });
+
+  test('POST /otp/request accepts registered email with 200 and returns challenge', async () => {
+    jest.spyOn(Employee, 'findOne').mockReturnValue({
+      lean: jest.fn().mockResolvedValue({
+        _id: '507f1f77bcf86cd799439011',
+        name: 'Registered Employee',
+        email: 'registered@example.com',
+        status: 'ACTIVE'
+      })
+    });
+    jest.spyOn(emailService, 'requestCode').mockResolvedValue('dummy-request-id');
+
+    const req = { body: { email: 'registered@example.com' } };
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn()
+    };
+
+    await otpHandler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      success: true,
+      data: expect.objectContaining({ challenge: expect.any(String) })
+    }));
   });
 });

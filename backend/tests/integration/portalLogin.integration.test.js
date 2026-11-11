@@ -56,7 +56,7 @@ test('OTP endpoints bind role server-side; an Admin challenge cannot reset throu
  expect((await request(app).post('/api/v1/auth/employee/otp/reset').send(body)).status).toBe(422);
  expect((await request(app).post('/api/v1/auth/admin/otp/reset').send(body)).status).toBe(200);
  expect((await login('admin',admin.email,'ReplacementPortal123!')).status).toBe(200);expect((await get('/auth/me',adminToken)).status).toBe(401);
- const known=await request(app).post('/api/v1/auth/admin/otp/request').send({email:admin.email,role:'EMPLOYEE'}),unknown=await request(app).post('/api/v1/auth/admin/otp/request').send({email:'absent@portal.test'});expect(known.status).toBe(202);expect(unknown.status).toBe(202);expect(known.body.message).toBe(unknown.body.message);expect(known.body.data).not.toHaveProperty('code');
+ const known=await request(app).post('/api/v1/auth/admin/otp/request').send({email:admin.email,role:'EMPLOYEE'}),unknown=await request(app).post('/api/v1/auth/admin/otp/request').send({email:'absent@portal.test'});expect(known.status).toBe(200);expect(unknown.status).toBe(404);expect(unknown.body.message).toBe('No registered account found with this email address.');expect(known.body.data).not.toHaveProperty('code');
 });
 test('invalid password validation never echoes submitted passwords',async()=>{
  const secret='x'.repeat(1001),res=await login('employee',employee.email,secret);expect(res.status).toBe(400);expect(JSON.stringify(res.body)).not.toContain(secret);
