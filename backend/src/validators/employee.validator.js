@@ -20,6 +20,7 @@ const validateCreateEmployee = [
 
 const validateUpdateEmployee = [
   body('name').optional().notEmpty().withMessage('Name cannot be empty'),
+  body('email').optional().isEmail().withMessage('Invalid email format').normalizeEmail(),
   body('phone').optional().matches(/^[0-9]{10}$/).withMessage('Invalid phone format'),
   body('branchId').optional().isMongoId().withMessage('Valid Branch ID is required'),
   body('area').optional().notEmpty().withMessage('Area cannot be empty'),

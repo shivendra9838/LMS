@@ -53,29 +53,103 @@ async function requestReset(email, req) {
   const content = {title:'Reset Your Employee Password',recipientName:employee.name,category:'SECURITY',message:'A password reset was requested for your Royal Enterprises Employee Portal account. Open the one-time link below to choose a new password.',url:resetUrl,actionLabel:'Reset password',rows:[['Link expires at',require('./emailTemplate.service').dateLabel(expiresAt)]],guidance:'If you did not request this, ignore this email. Your password has not changed. Never share this one-time link.'};
   try {
     const emailService = require('./email.service');
-    if (process.env.BREVO_API_KEY) {
-      await emailService.sendViaBrevo(employee.email, content, process.env.BREVO_API_KEY, config.user || 'vtechsoft9838@gmail.com');
-    } else if (process.env.RESEND_API_KEY) {
-      await emailService.sendViaResend(employee.email, content, process.env.RESEND_API_KEY, process.env.RESEND_FROM || 'Royal Enterprises <onboarding@resend.dev>');
-    } else {
-      const transport = nodemailer.createTransport(config.transport);
-      try {
-        const sent = await transport.sendMail({ from: config.from, to: employee.email,
-          subject: 'Royal Enterprises — reset your employee password',
-          ...render(content) });
-        if (Array.isArray(sent.accepted) && !sent.accepted.length) throw new Error('Delivery not accepted');
-      } finally { transport.close(); }
-    }
+    await emailService.send(employee.email, content, `reset-${employee._id}-${now.getTime()}`);
     await createAuditLog(req, { action: 'EMPLOYEE_PASSWORD_RESET_EMAIL_SENT', module: 'AUTH', referenceId: employee._id });
   } catch (err) {
     await Employee.updateOne({ _id: employee._id, 'passwordReset.tokenHash': tokenHash }, { $unset: { 'passwordReset.tokenHash': '', 'passwordReset.expiresAt': '' } });
     throw new Error('RESET_EMAIL_DELIVERY_FAILED');
-  } finally { transport.close(); }
+  }
 }
 
 async function completeReset(token, password, req) {
   const tokenHash = digest(token);
-  const filter = { status: 'ACTIVE', 'passwordReset.tokenHash': tokenHash, 'passwordReset.expiresAt': { $gt: new Date() } };
+  const now = new Date();
+
+  // 1. Check if token is an employee email change verification token
+  const verificationEmployee = await Employee.findOne({
+    status: 'ACTIVE',
+    'emailVerification.tokenHash': tokenHash,
+    'emailVerification.expiresAt': { $gt: now }
+  }).select('+emailVerification +password +authVersion');
+
+  if (verificationEmployee) {
+    if (await comparePassword(password, verificationEmployee.password)) {
+      const error = new Error('Choose a password different from your current password');
+      error.status = 400;
+      throw error;
+    }
+    const newPendingEmail = verificationEmployee.emailVerification?.pendingEmail || verificationEmployee.pendingEmail;
+    if (!newPendingEmail) {
+      return false;
+    }
+
+    const passwordHash = await hashPassword(password);
+    const updated = await Employee.findOneAndUpdate(
+      {
+        _id: verificationEmployee._id,
+        'emailVerification.tokenHash': tokenHash,
+        'emailVerification.expiresAt': { $gt: now },
+        password: verificationEmployee.password
+      },
+      {
+        $set: {
+          email: newPendingEmail,
+          password: passwordHash
+        },
+        $inc: { authVersion: 1 },
+        $unset: {
+          emailVerification: '',
+          pendingEmail: '',
+          passwordReset: ''
+        }
+      },
+      { returnDocument: 'after' }
+    );
+
+    if (!updated) return false;
+
+    try {
+      const emailDigest = require('./email.service').digest(newPendingEmail.toLowerCase());
+      await require('../models/AccountSettings').updateOne(
+        { userId: verificationEmployee._id, role: 'EMPLOYEE' },
+        { $set: { emailVerifiedHash: emailDigest, emailVerifiedAt: new Date() } },
+        { upsert: true }
+      );
+    } catch (err) {
+      console.error('Email change succeeded; AccountSettings could not be saved:', err.message);
+    }
+
+    await createAuditLog(req, {
+      action: 'EMPLOYEE_EMAIL_CHANGE_COMPLETED',
+      module: 'AUTH',
+      referenceId: verificationEmployee._id,
+      newValue: { email: newPendingEmail }
+    });
+
+    try {
+      const config = emailConfiguration();
+      if (config) {
+        const loginUrl = `${config.origin}/employee/login`;
+        const content = {
+          title: 'Account Credentials Updated',
+          recipientName: verificationEmployee.name,
+          category: 'SECURITY',
+          message: 'Your Royal Enterprises employee email and password have been successfully updated. You can now log in using your new credentials.',
+          url: loginUrl,
+          actionLabel: 'Sign in to Employee Portal',
+          guidance: 'If you did not perform this change, please contact your administrator immediately.'
+        };
+        await require('./email.service').send(newPendingEmail, content, `confirm-${verificationEmployee._id}-${Date.now()}`);
+      }
+    } catch (emailErr) {
+      console.error('Confirmation email after email change failed to send:', emailErr.message);
+    }
+
+    return true;
+  }
+
+  // 2. Standard password reset token logic
+  const filter = { status: 'ACTIVE', 'passwordReset.tokenHash': tokenHash, 'passwordReset.expiresAt': { $gt: now } };
   const employee = await Employee.findOne(filter);
   if (!employee) return false;
   if (await comparePassword(password, employee.password)) {
@@ -83,7 +157,7 @@ async function completeReset(token, password, req) {
   }
   const passwordHash = await hashPassword(password);
   // Password change and token consumption happen in one atomic document update.
-  const result = await Employee.findOneAndUpdate({ ...filter, 'passwordReset.expiresAt': { $gt: new Date() }, _id: employee._id, password: employee.password }, {
+  const result = await Employee.findOneAndUpdate({ ...filter, 'passwordReset.expiresAt': { $gt: now }, _id: employee._id, password: employee.password }, {
     $set: { password: passwordHash }, $inc: { authVersion: 1 }, $unset: { passwordReset: '' }
   }, { returnDocument: 'after' });
   if (!result) return false;

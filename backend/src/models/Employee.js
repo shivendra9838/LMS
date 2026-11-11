@@ -24,6 +24,22 @@ const employeeSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  pendingEmail: {
+    type: String,
+    lowercase: true,
+    trim: true,
+    default: null
+  },
+  emailVerification: {
+    type: new mongoose.Schema({
+      pendingEmail: { type: String, lowercase: true, trim: true },
+      tokenHash: String,
+      expiresAt: Date,
+      requestedAt: Date,
+      requestedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin' }
+    }, { _id: false }),
+    select: false
+  },
   password: {
     type: String,
     required: true

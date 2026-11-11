@@ -16,7 +16,7 @@ import toast from 'react-hot-toast';
 import BrandLogo from '../../components/BrandLogo';
 import api from '../../services/api';
 
-export default function PasswordRecovery({ reset = false, role = 'EMPLOYEE' }) {
+export default function PasswordRecovery({ reset = false, role = 'EMPLOYEE', setup = false }) {
   const navigate = useNavigate();
   const token = useRef(reset ? new URLSearchParams(window.location.hash.slice(1)).get('token') || '' : '');
   const inFlight = useRef(false);
@@ -120,7 +120,7 @@ export default function PasswordRecovery({ reset = false, role = 'EMPLOYEE' }) {
       setPassword('');
       setConfirmation('');
       if (reset) token.current = '';
-      toast.success('Password updated. Sign in with your new password.');
+      toast.success(setup ? 'Password set. Sign in with your new password.' : 'Password updated. Sign in with your new password.');
       navigate(`/${role.toLowerCase()}/login`, { replace: true });
     } catch (failure) {
       setError(
@@ -216,11 +216,13 @@ export default function PasswordRecovery({ reset = false, role = 'EMPLOYEE' }) {
           {/* Title & Description */}
           <div className="text-center space-y-2">
             <h1 id="recovery-title" className="text-xl sm:text-2xl font-bold tracking-tight text-white">
-              {collecting ? 'Set a New Password' : 'Forgot Your Password?'}
+              {collecting ? (setup ? 'Set Up Your Password' : 'Set a New Password') : 'Forgot Your Password?'}
             </h1>
             <p className="text-xs sm:text-sm text-gray-400 leading-relaxed max-w-[340px] mx-auto">
               {collecting ? (
-                'Choose a new account password or generate a strong password below. Save it securely before signing in.'
+                setup
+                  ? 'Set a strong password for your verified account. Save it securely before signing in.'
+                  : 'Choose a new account password or generate a strong password below. Save it securely before signing in.'
               ) : (
                 <>
                   Enter your registered account email. We'll send a one-time code (OTP) valid for 10 minutes.
@@ -437,12 +439,12 @@ export default function PasswordRecovery({ reset = false, role = 'EMPLOYEE' }) {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <span>{collecting ? 'Resetting password…' : 'Sending verification code…'}</span>
+                    <span>{collecting ? (setup ? 'Setting password…' : 'Resetting password…') : 'Sending verification code…'}</span>
                   </>
                 ) : collecting ? (
                   <>
                     <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
-                    <span>Save new password</span>
+                    <span>{setup ? 'Set Password' : 'Save new password'}</span>
                   </>
                 ) : (
                   <>

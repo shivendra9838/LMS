@@ -34,7 +34,7 @@ const getEmployees = async (query) => {
   const skip = (parseInt(page) - 1) * parseInt(limit);
 
   const employees = await Employee.find(filter)
-    .select('employeeCode name email phone city branchId area status role joiningDate')
+    .select('employeeCode name email pendingEmail phone city branchId area status role joiningDate')
     .collation({locale:'en',strength:2})
     .populate('branchId', 'name areas status')
     .sort(sortOptions)
@@ -54,7 +54,7 @@ const getEmployees = async (query) => {
 };
 
 const getEmployeeById = async (id) => {
-  return await Employee.findById(id).select('-password -__v').populate('branchId', 'name areas status');
+  return await Employee.findById(id).select('-password -__v +emailVerification').populate('branchId', 'name areas status');
 };
 
 const updateEmployeeById = async (id, updateData) => {

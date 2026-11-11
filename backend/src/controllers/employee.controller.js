@@ -1,4 +1,13 @@
-const { createEmployeeService, getEmployeeListService, getEmployeeByIdService, updateEmployeeService, updateEmployeeStatusService, resetEmployeePasswordService } = require('../services/employee.service');
+const { 
+  createEmployeeService, 
+  getEmployeeListService, 
+  getEmployeeByIdService, 
+  updateEmployeeService, 
+  updateEmployeeStatusService, 
+  resetEmployeePasswordService,
+  resendEmployeeEmailVerification,
+  cancelEmployeeEmailVerification
+} = require('../services/employee.service');
 
 const createEmployee = async (req, res, next) => {
   try {
@@ -61,19 +70,54 @@ const getEmployee = async (req, res, next) => {
 
 const updateEmployeeController = async (req, res, next) => {
   try {
-    const employee = await updateEmployeeService(req.params.id, req.body);
-    await require('../utils/auditLogger').createAuditLog(req,{action:'EMPLOYEE_PROFILE_UPDATED',module:'ACCOUNT',referenceId:req.params.id,newValue:{fields:Object.keys(req.body).filter(k=>['name','phone','city','area','branchId','status'].includes(k))}});
+    const result = await updateEmployeeService(req.params.id, req.body, req.user?.id, req);
+    const employee = result.employee || result;
+    const isPending = Boolean(result.emailChangePending);
+    await require('../utils/auditLogger').createAuditLog(req,{action:'EMPLOYEE_PROFILE_UPDATED',module:'ACCOUNT',referenceId:req.params.id,newValue:{fields:Object.keys(req.body).filter(k=>['name','email','phone','city','area','branchId','status'].includes(k))}});
     res.status(200).json({
       success: true,
-      message: 'Employee updated successfully',
-      data: employee
+      message: isPending 
+        ? 'Employee updated. Verification email sent to new address.' 
+        : 'Employee updated successfully',
+      data: employee,
+      emailChangePending: isPending
     });
   } catch (error) {
     if (error.name === 'CastError' || error.message === 'Employee Not Found') {
       return res.status(404).json({ success: false, message: 'Employee Not Found' });
     }
-    if (error.message === 'Phone already exists') {
+    if (error.message === 'Phone already exists' || error.message === 'Email already exists' || error.message?.includes('already pending verification')) {
       return res.status(400).json({ success: false, message: error.message });
+    }
+    if (error.status) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
+    next(error);
+  }
+};
+
+const resendVerificationController = async (req, res, next) => {
+  try {
+    const result = await resendEmployeeEmailVerification(req.params.id, req.user?.id, req);
+    res.status(200).json(result);
+  } catch (error) {
+    if (error.name === 'CastError' || error.message === 'Employee Not Found') {
+      return res.status(404).json({ success: false, message: 'Employee Not Found' });
+    }
+    if (error.status) {
+      return res.status(error.status).json({ success: false, message: error.message });
+    }
+    next(error);
+  }
+};
+
+const cancelEmailChangeController = async (req, res, next) => {
+  try {
+    const result = await cancelEmployeeEmailVerification(req.params.id, req.user?.id, req);
+    res.status(200).json(result);
+  } catch (error) {
+    if (error.name === 'CastError' || error.message === 'Employee Not Found') {
+      return res.status(404).json({ success: false, message: 'Employee Not Found' });
     }
     if (error.status) {
       return res.status(error.status).json({ success: false, message: error.message });
@@ -138,4 +182,14 @@ const getEmployeeProfile = async (req, res, next) => {
   }
 };
 
-module.exports = { createEmployee, getEmployeeList, getEmployee, updateEmployeeController, updateEmployeeStatusController, resetEmployeePasswordController, getEmployeeProfile };
+module.exports = {
+  createEmployee,
+  getEmployeeList,
+  getEmployee,
+  updateEmployeeController,
+  resendVerificationController,
+  cancelEmailChangeController,
+  updateEmployeeStatusController,
+  resetEmployeePasswordController,
+  getEmployeeProfile
+};

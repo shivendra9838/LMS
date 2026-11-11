@@ -1,6 +1,16 @@
 const express = require('express');
 const router = express.Router();
-const { createEmployee, getEmployeeList, getEmployee, updateEmployeeController, updateEmployeeStatusController, resetEmployeePasswordController, getEmployeeProfile } = require('../controllers/employee.controller');
+const {
+  createEmployee,
+  getEmployeeList,
+  getEmployee,
+  updateEmployeeController,
+  resendVerificationController,
+  cancelEmailChangeController,
+  updateEmployeeStatusController,
+  resetEmployeePasswordController,
+  getEmployeeProfile
+} = require('../controllers/employee.controller');
 const {
   validateCreateEmployee,
   validateUpdateEmployee,
@@ -19,6 +29,8 @@ router.get('/profile', authenticate, authorizeRoles('EMPLOYEE'), getEmployeeProf
 
 router.get('/:id', authenticate, authorizeRoles('ADMIN'), validateEmployeeId, getEmployee);
 router.put('/:id', authenticate, authorizeRoles('ADMIN'), validateEmployeeId, validateUpdateEmployee, updateEmployeeController);
+router.post('/:id/resend-verification', authenticate, authorizeRoles('ADMIN'), validateEmployeeId, resendVerificationController);
+router.post('/:id/cancel-email-change', authenticate, authorizeRoles('ADMIN'), validateEmployeeId, cancelEmailChangeController);
 router.patch('/:id/status', authenticate, authorizeRoles('ADMIN'), validateEmployeeId, validateEmployeeStatus, updateEmployeeStatusController);
 router.patch('/:id/reset-password', authenticate, authorizeRoles('ADMIN'), validateEmployeeId, resetEmployeePasswordController);
 

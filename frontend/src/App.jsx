@@ -85,6 +85,7 @@ function App() {
         <Route path="/admin/forgot-password" element={<PasswordRecovery key="admin-forgot" role="ADMIN" />} />
         <Route path="/employee/forgot-password" element={<PasswordRecovery key="forgot" />} />
         <Route path="/employee/reset-password" element={<PasswordRecovery key="reset" reset />} />
+        <Route path="/employee/setup-password" element={<PasswordRecovery key="setup" reset setup />} />
         <Route path="/employee" element={<EmployeeLayout />}>
           <Route index element={<Navigate to="/employee/dashboard" replace />} />
           <Route path="dashboard" element={<EmployeeDashboard />} />
