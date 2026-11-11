@@ -34,6 +34,10 @@ async function sendViaBrevo(to, content, apiKey, senderEmail, senderName = 'Roya
     console.error(`[Brevo API Error] Status ${response.status}: ${errorData}`);
     throw new Error(`Brevo API delivery failed (${response.status}): ${errorData}`);
   }
+  const data = await response.json().catch(() => ({}));
+  if (data?.messageId) {
+    console.log(`[Brevo API Queue] Accepted by Brevo. messageId: ${data.messageId}`);
+  }
   return true;
 }
 
