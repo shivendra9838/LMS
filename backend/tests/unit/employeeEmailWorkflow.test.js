@@ -142,3 +142,86 @@ describe('Password Setup & Email Activation Logic', () => {
     expect(result).toBe(false);
   });
 });
+
+describe('updateEmployeeService Unit Tests', () => {
+  const Employee = require('../../src/models/Employee');
+  const Admin = require('../../src/models/Admin');
+  const employeeService = require('../../src/services/employee.service');
+  const dummyId = '507f1f77bcf86cd799439011';
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test('Case A: email unchanged updates other fields without pending verification', async () => {
+    const mockEmployee = {
+      _id: dummyId,
+      name: 'Existing Name',
+      email: 'sintu@example.com',
+      phone: '9876543210',
+      city: 'Mumbai',
+      area: 'Central',
+      status: 'ACTIVE'
+    };
+
+    jest.spyOn(Employee, 'findById').mockReturnValue({
+      select: jest.fn().mockResolvedValue(mockEmployee)
+    });
+
+    jest.spyOn(Employee, 'findByIdAndUpdate').mockReturnValue({
+      select: jest.fn().mockResolvedValue({
+        ...mockEmployee,
+        name: 'New Name'
+      })
+    });
+
+    const result = await employeeService.updateEmployeeService(
+      dummyId,
+      { name: 'New Name', email: 'sintu@example.com' },
+      '507f1f77bcf86cd799439099',
+      {}
+    );
+
+    expect(result.emailChangePending).toBe(false);
+    expect(result.name).toBe('New Name');
+  });
+
+  test('Case B: email changed sets pendingEmail and emailVerification and sends notification', async () => {
+    const mockEmployee = {
+      _id: dummyId,
+      name: 'Existing Name',
+      email: 'old@example.com',
+      phone: '9876543210',
+      city: 'Mumbai',
+      area: 'Central',
+      status: 'ACTIVE'
+    };
+
+    jest.spyOn(Employee, 'findById').mockReturnValue({
+      select: jest.fn().mockResolvedValue(mockEmployee)
+    });
+    jest.spyOn(Admin, 'findOne').mockResolvedValue(null);
+    jest.spyOn(Employee, 'findOne').mockResolvedValue(null);
+
+    jest.spyOn(Employee, 'findByIdAndUpdate').mockImplementation((id, update) => {
+      return {
+        select: jest.fn().mockResolvedValue({
+          ...mockEmployee,
+          pendingEmail: update.$set.pendingEmail,
+          emailVerification: update.$set.emailVerification
+        })
+      };
+    });
+
+    const result = await employeeService.updateEmployeeService(
+      dummyId,
+      { email: 'newemail@example.com' },
+      '507f1f77bcf86cd799439099',
+      {}
+    );
+
+    expect(result.emailChangePending).toBe(true);
+    expect(result.pendingEmail).toBe('newemail@example.com');
+    expect(result.emailVerification.tokenHash).toBeUndefined(); // stripped from response
+  });
+});

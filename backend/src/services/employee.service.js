@@ -1,9 +1,8 @@
+const Employee = require('../models/Employee');
+const Admin = require('../models/Admin');
 const { findByEmailOrPhone, createEmployee, getEmployees, getEmployeeById, updateEmployeeById, updateEmployeeStatusById, resetEmployeePasswordById, getEmployeeStats } = require('../repositories/employee.repository');
 const { generateEmployeeCode } = require('../utils/generateCode');
 const { getBranchByIdService, ensureBranchArea } = require('./branch.service');
-
-// ... [skipping to bottom for export]
-// Wait, I will use a separate replacement chunk for the bottom
 
 const createEmployeeService = async (employeeData, createdBy) => {
   const existingUser = await findByEmailOrPhone(employeeData.email, employeeData.phone);
@@ -127,7 +126,7 @@ const updateEmployeeService = async (id, updateData, adminId, req) => {
         tokenHash,
         expiresAt,
         requestedAt: now,
-        requestedBy: adminId
+        requestedBy: (adminId && require('mongoose').isValidObjectId(adminId)) ? adminId : undefined
       };
       emailChangeInitiated = true;
 
@@ -187,22 +186,27 @@ const updateEmployeeService = async (id, updateData, adminId, req) => {
   }
   
   let branch = null;
-  const branchId = updateData.branchId || employee.branchId?._id || employee.branchId;
+  const branchId = updateData.branchId !== undefined ? updateData.branchId : (employee.branchId?._id || employee.branchId);
   const area = updateData.area || employee.area;
 
   if (branchId) {
     branch = await getBranchByIdService(branchId);
-    ensureBranchArea(branch, area);
+    if (updateData.branchId || updateData.area) {
+      ensureBranchArea(branch, area);
+    }
   }
 
   const allowedUpdates = {
     name: updateData.name || employee.name,
     phone: updateData.phone || employee.phone,
-    branchId,
     area,
     city: updateData.city || branch?.name || employee.city,
     status: updateData.status || employee.status
   };
+
+  if (branchId) {
+    allowedUpdates.branchId = branchId;
+  }
 
   if (emailChangeInitiated) {
     allowedUpdates.pendingEmail = newPendingEmail;
@@ -237,7 +241,7 @@ const resendEmployeeEmailVerification = async (id, adminId, req) => {
     error.status = 404;
     throw error;
   }
-  if (!employee.emailVerification?.pendingEmail) {
+  if (!employee.emailVerification?.pendingEmail && !employee.pendingEmail) {
     const error = new Error('No pending email verification for this employee');
     error.status = 400;
     throw error;
@@ -248,12 +252,15 @@ const resendEmployeeEmailVerification = async (id, adminId, req) => {
   const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
   const now = new Date();
   const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-  const pendingEmail = employee.emailVerification.pendingEmail;
+  const pendingEmail = employee.emailVerification?.pendingEmail || employee.pendingEmail;
 
-  employee.emailVerification.tokenHash = tokenHash;
-  employee.emailVerification.expiresAt = expiresAt;
-  employee.emailVerification.requestedAt = now;
-  employee.emailVerification.requestedBy = adminId;
+  employee.emailVerification = {
+    pendingEmail,
+    tokenHash,
+    expiresAt,
+    requestedAt: now,
+    requestedBy: (adminId && require('mongoose').isValidObjectId(adminId)) ? adminId : undefined
+  };
   await employee.save();
 
   const { emailConfiguration } = require('./passwordRecovery.service');
