@@ -134,6 +134,7 @@ const updateEmployeeService = async (id, updateData, adminId, req) => {
       const emailConfig = emailConfiguration();
       const frontendUrl = String(process.env.FRONTEND_URL || emailConfig?.origin || 'http://localhost:5173').replace(/\/$/, '');
       const setupUrl = `${frontendUrl}/employee/setup-password#token=${token}`;
+      console.log(`[Setup Link for ${requestedEmail}]: ${setupUrl}`);
       
       const emailService = require('./email.service');
       const templateService = require('./emailTemplate.service');
@@ -269,6 +270,7 @@ const resendEmployeeEmailVerification = async (id, adminId, req) => {
   const emailConfig = emailConfiguration();
   const frontendUrl = String(process.env.FRONTEND_URL || emailConfig?.origin || 'http://localhost:5173').replace(/\/$/, '');
   const setupUrl = `${frontendUrl}/employee/setup-password#token=${token}`;
+  console.log(`[Setup Link for ${pendingEmail}]: ${setupUrl}`);
   
   const emailService = require('./email.service');
   const templateService = require('./emailTemplate.service');
